@@ -64,17 +64,17 @@ class FileDaoTest {
     // ============================================================
 
     @Test
-    void getAllImageUrlPathsShouldReturnEmptyWhenDirMissing() {
+    void getAllImageFileNamesShouldReturnEmptyWhenDirMissing() {
         String unknownUid = "no-such-user-" + UUID.randomUUID();
-        List<String> paths = fileDao.getAllImageUrlPaths(unknownUid);
+        List<String> paths = fileDao.getAllImageFileNames(unknownUid);
         assertNotNull(paths);
         assertTrue(paths.isEmpty());
     }
 
     @Test
-    void getAllAudioUrlPathsShouldReturnEmptyWhenDirMissing() {
+    void getAllAudioFileNamesShouldReturnEmptyWhenDirMissing() {
         String unknownUid = "no-such-user-" + UUID.randomUUID();
-        List<String> paths = fileDao.getAllAudioUrlPaths(unknownUid);
+        List<String> paths = fileDao.getAllAudioFileNames(unknownUid);
         assertNotNull(paths);
         assertTrue(paths.isEmpty());
     }
@@ -179,7 +179,7 @@ class FileDaoTest {
     // ============================================================
 
     @Test
-    void getAllImageUrlPathsShouldReturnAllFileNamesUnderUid() throws Exception {
+    void getAllImageFileNamesShouldReturnAllFileNamesUnderUid() throws Exception {
         String uid = "user-img-list";
         // 写两张图
         fileDao.createImageFile(new MockMultipartFile(
@@ -187,31 +187,43 @@ class FileDaoTest {
         fileDao.createImageFile(new MockMultipartFile(
                 "f", "b.jpg", "image/jpeg", jpegBytes()), uid);
 
-        List<String> urls = fileDao.getAllImageUrlPaths(uid);
-        assertEquals(2, urls.size());
-        assertTrue(urls.stream().allMatch(path -> path.startsWith("/images/" + uid + "/")));
-        assertTrue(urls.stream().anyMatch(path -> path.endsWith(".png")));
-        assertTrue(urls.stream().anyMatch(path -> path.endsWith(".jpg")));
+        List<String> fileNames = fileDao.getAllImageFileNames(uid);
+        assertEquals(2, fileNames.size());
+        assertTrue(fileNames.stream().anyMatch(path -> path.endsWith(".png")));
+        assertTrue(fileNames.stream().anyMatch(path -> path.endsWith(".jpg")));
     }
 
     @Test
-    void getAllAudioUrlPathsShouldReturnAllFileNamesUnderUid() throws Exception {
+    void getAllAudioFileNamesShouldReturnAllFileNamesUnderUid() throws Exception {
         String uid = "user-aud-list";
         fileDao.createAudioFile(new MockMultipartFile(
                 "f", "c.wav", "audio/wav", wavBytes()), uid);
 
-        List<String> urls = fileDao.getAllAudioUrlPaths(uid);
-        assertEquals(1, urls.size());
-        assertTrue(urls.get(0).matches("/audio/" + uid + "/[0-9a-f-]{36}\\.wav"));
+        List<String> fileNames = fileDao.getAllAudioFileNames(uid);
+        assertEquals(1, fileNames.size());
+        assertTrue(fileNames.get(0).matches("[0-9a-f-]{36}\\.wav"));
     }
 
     @Test
-    void getAllImageUrlPathsShouldReturnEmptyWhenDirExistsButIsEmpty() throws Exception {
+    void getAllImageFileNamesShouldReturnEmptyWhenDirExistsButIsEmpty() throws Exception {
         // 区别于 dir 不存在 (null) 的情况：dir 存在但内容为空 → for 循环 0 次
         String uid = "user-img-empty";
         Files.createDirectories(tempDir.resolve("images").resolve(uid));
 
-        assertEquals(List.of(), fileDao.getAllImageUrlPaths(uid));
+        assertEquals(List.of(), fileDao.getAllImageFileNames(uid));
+    }
+
+    @Test
+    void findMediaFileShouldReturnOnlyExistingRegularFile() {
+        String uid = "user-find";
+        File saved = fileDao.createImageFile(new MockMultipartFile(
+                "f", "a.png", "image/png", pngBytes()), uid);
+
+        assertEquals(saved.toPath().toAbsolutePath().normalize(),
+                fileDao.findMediaFile("images", uid, saved.getName()).orElseThrow());
+        assertTrue(fileDao.findMediaFile("images", uid, "missing.png").isEmpty());
+        assertThrows(IllegalArgumentException.class,
+                () -> fileDao.findMediaFile("images", uid, "../escape.png"));
     }
 
     private static byte[] pngBytes() {

@@ -1,20 +1,18 @@
 package com.blkn.lr.lr_new_server.controllers;
 
-import com.blkn.lr.lr_new_server.config.AppSetting;
-import com.blkn.lr.lr_new_server.dao.impl.FileDao;
+import com.blkn.lr.lr_new_server.dto.models.media.MediaFileDto;
 import com.blkn.lr.lr_new_server.exception.GlobalExceptionHandler;
 import com.blkn.lr.lr_new_server.exception.FileTypeException;
+import com.blkn.lr.lr_new_server.services.MediaServices;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.core.env.Environment;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.io.File;
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
@@ -35,27 +33,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   <li>GET /api/audios：列出当前 uid 的音频 URL + name</li>
  * </ul>
  *
- * <p>关键分支：content-type 包含 "image/" / "audio/" / 都不匹配 → BusinessErrorException。
- * 拼接 URL 走 {@code StaticResourcesConfig.getUrlPrefix(host, port)}（host 由 AppSetting、port 由 Environment）。
+ * <p>控制器只负责路由到 {@link MediaServices}；文件头校验、落盘和签名 URL
+ * 生成均由服务层负责。
  */
 class FileControllerTest {
 
     private MockMvc mvc;
-    private FileDao fileDao;
-    private Environment env;
-    private AppSetting appSetting;
+    private MediaServices mediaServices;
 
     private static final String UID = "user-7";
 
     @BeforeEach
     void setUp() {
-        fileDao = mock(FileDao.class);
-        env = mock(Environment.class);
-        appSetting = mock(AppSetting.class);
-        when(appSetting.getHost()).thenReturn("localhost");
-        when(env.getProperty("server.port")).thenReturn("8080");
+        mediaServices = mock(MediaServices.class);
 
-        FileController controller = new FileController(fileDao, env, appSetting);
+        FileController controller = new FileController(mediaServices);
         mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
@@ -67,22 +59,24 @@ class FileControllerTest {
 
     @Test
     void uploadImagesShouldRouteImageContentTypeToCreateImageFile() throws Exception {
-        when(fileDao.createImageFile(org.mockito.ArgumentMatchers.any(), eq(UID)))
-                .thenReturn(new File("/tmp/abc.png"));
+        when(mediaServices.saveImage(any(), org.mockito.ArgumentMatchers.eq(UID)))
+                .thenReturn(new MediaFileDto(
+                        "abc.png",
+                        "http://localhost:8080/images/" + UID + "/abc.png?expires=123&signature=sig"));
 
         MockMultipartFile mf = new MockMultipartFile("file", "abc.png", "image/png", new byte[]{1, 2, 3});
         mvc.perform(multipart("/api/image").file(mf).requestAttr("uid", UID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("abc.png"))
-                // URL prefix + getImageUrlPath("/images/user-7/abc.png")
-                .andExpect(jsonPath("$.url").value("http://localhost:8080/images/" + UID + "/abc.png"));
-        verify(fileDao).createImageFile(org.mockito.ArgumentMatchers.any(), eq(UID));
+                .andExpect(jsonPath("$.url").value(
+                        "http://localhost:8080/images/" + UID + "/abc.png?expires=123&signature=sig"));
+        verify(mediaServices).saveImage(any(), org.mockito.ArgumentMatchers.eq(UID));
     }
 
     @Test
     void uploadImagesShouldReturn400WhenFileDaoRejectsContent() throws Exception {
         MockMultipartFile mf = new MockMultipartFile("file", "x.txt", "text/plain", new byte[]{1, 2});
-        when(fileDao.createImageFile(org.mockito.ArgumentMatchers.any(), eq(UID)))
+        when(mediaServices.saveImage(any(), org.mockito.ArgumentMatchers.eq(UID)))
                 .thenThrow(new FileTypeException("文件内容不是受支持的图片"));
 
         mvc.perform(multipart("/api/image").file(mf).requestAttr("uid", UID))
@@ -95,27 +89,30 @@ class FileControllerTest {
 
     @Test
     void uploadAudioShouldRouteAudioContentTypeToCreateAudioFile() throws Exception {
-        when(fileDao.createAudioFile(org.mockito.ArgumentMatchers.any(), eq(UID)))
-                .thenReturn(new File("/tmp/xyz.wav"));
+        when(mediaServices.saveAudio(any(), org.mockito.ArgumentMatchers.eq(UID)))
+                .thenReturn(new MediaFileDto(
+                        "xyz.wav",
+                        "http://localhost:8080/audio/" + UID + "/xyz.wav?expires=123&signature=sig"));
 
         MockMultipartFile mf = new MockMultipartFile("file", "xyz.wav", "audio/wav", new byte[]{5, 6});
         mvc.perform(multipart("/api/audio").file(mf).requestAttr("uid", UID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("xyz.wav"))
-                .andExpect(jsonPath("$.url").value("http://localhost:8080/audio/" + UID + "/xyz.wav"));
-        verify(fileDao).createAudioFile(org.mockito.ArgumentMatchers.any(), eq(UID));
+                .andExpect(jsonPath("$.url").value(
+                        "http://localhost:8080/audio/" + UID + "/xyz.wav?expires=123&signature=sig"));
+        verify(mediaServices).saveAudio(any(), org.mockito.ArgumentMatchers.eq(UID));
     }
 
     @Test
     void uploadImagesShouldNeverRouteToAudioStorage() throws Exception {
-        when(fileDao.createImageFile(org.mockito.ArgumentMatchers.any(), eq(UID)))
+        when(mediaServices.saveImage(any(), org.mockito.ArgumentMatchers.eq(UID)))
                 .thenThrow(new FileTypeException("文件内容不是受支持的图片"));
 
         MockMultipartFile mf = new MockMultipartFile("file", "audio-via-image.wav", "audio/wav", new byte[]{1});
         mvc.perform(multipart("/api/image").file(mf).requestAttr("uid", UID))
                 .andExpect(status().isBadRequest());
 
-        verify(fileDao, never()).createAudioFile(org.mockito.ArgumentMatchers.any(), eq(UID));
+        verify(mediaServices, never()).saveAudio(any(), org.mockito.ArgumentMatchers.eq(UID));
     }
 
     // ============================================================
@@ -124,21 +121,24 @@ class FileControllerTest {
 
     @Test
     void getAllImageInfoShouldSplitPathAndPrependUrlPrefix() throws Exception {
-        when(fileDao.getAllImageUrlPaths(UID))
-                .thenReturn(List.of("/images/" + UID + "/a.png", "/images/" + UID + "/b.jpg"));
+        when(mediaServices.listImages(UID))
+                .thenReturn(List.of(
+                        new MediaFileDto("a.png", "http://localhost:8080/images/" + UID + "/a.png?expires=123&signature=a"),
+                        new MediaFileDto("b.jpg", "http://localhost:8080/images/" + UID + "/b.jpg?expires=123&signature=b")));
 
         mvc.perform(get("/api/images").requestAttr("uid", UID))
                 .andExpect(status().isOk())
-                // 取 split("/") 最后一段做 name
                 .andExpect(jsonPath("$[0].name").value("a.png"))
-                .andExpect(jsonPath("$[0].url").value("http://localhost:8080/images/" + UID + "/a.png"))
+                .andExpect(jsonPath("$[0].url").value(
+                        "http://localhost:8080/images/" + UID + "/a.png?expires=123&signature=a"))
                 .andExpect(jsonPath("$[1].name").value("b.jpg"))
-                .andExpect(jsonPath("$[1].url").value("http://localhost:8080/images/" + UID + "/b.jpg"));
+                .andExpect(jsonPath("$[1].url").value(
+                        "http://localhost:8080/images/" + UID + "/b.jpg?expires=123&signature=b"));
     }
 
     @Test
     void getAllImageInfoShouldReturnEmptyArrayWhenNoImages() throws Exception {
-        when(fileDao.getAllImageUrlPaths(UID)).thenReturn(List.of());
+        when(mediaServices.listImages(UID)).thenReturn(List.of());
 
         mvc.perform(get("/api/images").requestAttr("uid", UID))
                 .andExpect(status().isOk())
@@ -147,18 +147,21 @@ class FileControllerTest {
 
     @Test
     void getAllAudioInfoShouldSplitPathAndPrependUrlPrefix() throws Exception {
-        when(fileDao.getAllAudioUrlPaths(UID))
-                .thenReturn(List.of("/audio/" + UID + "/c.wav"));
+        when(mediaServices.listAudios(UID))
+                .thenReturn(List.of(new MediaFileDto(
+                        "c.wav",
+                        "http://localhost:8080/audio/" + UID + "/c.wav?expires=123&signature=c")));
 
         mvc.perform(get("/api/audios").requestAttr("uid", UID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].name").value("c.wav"))
-                .andExpect(jsonPath("$[0].url").value("http://localhost:8080/audio/" + UID + "/c.wav"));
+                .andExpect(jsonPath("$[0].url").value(
+                        "http://localhost:8080/audio/" + UID + "/c.wav?expires=123&signature=c"));
     }
 
     @Test
     void getAllAudioInfoShouldReturnEmptyArrayWhenNoAudios() throws Exception {
-        when(fileDao.getAllAudioUrlPaths(UID)).thenReturn(List.of());
+        when(mediaServices.listAudios(UID)).thenReturn(List.of());
 
         mvc.perform(get("/api/audios").requestAttr("uid", UID))
                 .andExpect(status().isOk())

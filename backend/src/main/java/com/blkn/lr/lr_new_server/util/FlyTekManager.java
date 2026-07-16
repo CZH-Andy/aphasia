@@ -1,6 +1,5 @@
 package com.blkn.lr.lr_new_server.util;
 
-import com.blkn.lr.lr_new_server.config.AppSetting;
 import com.blkn.lr.lr_new_server.config.FlyTekApiConfig;
 import com.blkn.lr.lr_new_server.config.StaticResourcesConfig;
 import com.blkn.lr.lr_new_server.thirdparty.FlyTekAudioRecognizer;
@@ -30,7 +29,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class FlyTekManager {
     private final FlyTekApiConfig flyTekApiConfig;
-    private final AppSetting appSetting;
 
     public Future<String> recognizeAudio(byte[] pcm16bitsData) throws Exception {
         String authedUrl = getAuthUrl(
@@ -48,7 +46,7 @@ public class FlyTekManager {
         return future;
     }
 
-    public Future<String> synthesisAudioFromText(String text, String uid, String serverPort) throws java.io.IOException, NoSuchAlgorithmException, InvalidKeyException {
+    public Future<String> synthesisAudioFromText(String text, String uid) throws java.io.IOException, NoSuchAlgorithmException, InvalidKeyException {
         String authedUrl = getAuthUrl(
                 flyTekApiConfig.getAudioSynthesisUrl(),
                 flyTekApiConfig.getApiKey(),
@@ -61,8 +59,7 @@ public class FlyTekManager {
         // 不把患者/题干文本暴露在文件名里，也避免同文本并发生成时互相覆盖。
         String fileName = UUID.randomUUID() + ".mp3";
         String destFilePath = StaticResourcesConfig.getAudioDirPath(uid) + fileName;
-        String fileUrlPath = StaticResourcesConfig.getUrlPrefix(appSetting.getHost(), serverPort)
-                + StaticResourcesConfig.getAudioUrlPath(uid, fileName);
+        String fileUrlPath = StaticResourcesConfig.getAudioUrlPath(uid, fileName);
 
         Path destPath = Paths.get(destFilePath);
         if (destPath.getParent() != null) {

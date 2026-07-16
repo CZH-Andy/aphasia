@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -53,14 +54,22 @@ public class FileDao {
         return saveToFile(StaticResourcesConfig.getAudioDirPath(uid), file, detectAudioExtension(file));
     }
 
-    public List<String> getAllImageUrlPaths(String uid) {
+    public List<String> getAllImageFileNames(String uid) {
         String dirPath = StaticResourcesConfig.getImageDirPath(uid);
-        return getFileNames(dirPath).stream().map(e -> StaticResourcesConfig.getImageUrlPath(uid, e)).toList();
+        return getFileNames(dirPath);
     }
 
-    public List<String> getAllAudioUrlPaths(String uid) {
+    public List<String> getAllAudioFileNames(String uid) {
         String dirPath = StaticResourcesConfig.getAudioDirPath(uid);
-        return getFileNames(dirPath).stream().map(e -> StaticResourcesConfig.getAudioUrlPath(uid, e)).toList();
+        return getFileNames(dirPath);
+    }
+
+    public Optional<Path> findMediaFile(String mediaType, String uid, String fileName) {
+        Path path = StaticResourcesConfig.getMediaFilePath(mediaType, uid, fileName);
+        if (!Files.isRegularFile(path)) {
+            return Optional.empty();
+        }
+        return Optional.of(path);
     }
 
     @NotNull

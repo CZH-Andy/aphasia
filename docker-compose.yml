@@ -53,6 +53,7 @@ services:
       REDIS_HOST: redis
       LLM_SERVICE_URL: http://llm:8001
       MEDIA_ROOT: /app/media
+      APP_PUBLIC_BASE_URL: ${APP_PUBLIC_BASE_URL:-http://localhost:8080}
     volumes:
       - media-data:/app/media
     ports:

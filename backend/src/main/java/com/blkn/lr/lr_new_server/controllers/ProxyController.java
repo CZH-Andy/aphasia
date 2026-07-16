@@ -10,13 +10,13 @@ import com.blkn.lr.lr_new_server.exception.ProxyServiceException;
 import com.blkn.lr.lr_new_server.interceptor.RequireRole;
 import com.blkn.lr.lr_new_server.services.PinyinService;
 import com.blkn.lr.lr_new_server.services.QwenAudioService;
+import com.blkn.lr.lr_new_server.services.MediaServices;
 import com.blkn.lr.lr_new_server.util.BaiduApiManager;
 import com.blkn.lr.lr_new_server.util.FlyTekManager;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.env.Environment;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -34,8 +34,8 @@ public class ProxyController {
     private final BaiduApiManager baiduApi;
     private final QwenAudioService qwenAudioService;
     private final FlyTekManager flyTekManager;
-    private final Environment environment;
     private final PinyinService pinyinService;
+    private final MediaServices mediaServices;
 
     @PostMapping("/pinyin_match")
     PinyinMatchResult pinyinMatch(@RequestParam("keyword") String keyword,
@@ -93,19 +93,18 @@ public class ProxyController {
 
         String uid = (String) request.getAttribute("uid");
 
-        String port = environment.getProperty("server.port");
-        Future<String> future = flyTekManager.synthesisAudioFromText(text, uid, port);
-        String url;
+        Future<String> future = flyTekManager.synthesisAudioFromText(text, uid);
+        String storageUrl;
         try {
-            url = future.get(30, TimeUnit.SECONDS);
+            storageUrl = future.get(30, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
             future.cancel(true);
             throw new ProxyServiceException("讯飞 TTS 超时", e);
         }
 
-        String[] tokens = url.split("/");
+        String[] tokens = storageUrl.split("/");
         String fileName = tokens[tokens.length - 1];
 
-        return Map.of("url", url, "name", fileName);
+        return Map.of("url", mediaServices.signUrl(storageUrl), "name", fileName);
     }
 }

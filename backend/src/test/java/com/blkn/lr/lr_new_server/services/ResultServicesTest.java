@@ -27,6 +27,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -62,7 +63,9 @@ class ResultServicesTest {
         resultDao = mock(ExamResultDao.class);
         examDao = mock(ExamDao.class);
         questionDao = mock(QuestionDao.class);
-        QuestionMapper questionMapper = new QuestionMapper();
+        QuestionMapper questionMapper = new QuestionMapper(MediaUrlService.forTesting(
+                "0123456789abcdef0123456789abcdef", 900,
+                "http://localhost:8080", Clock.systemUTC()));
         ExamResultMapper resultMapper = new ExamResultMapper(questionDao, questionMapper);
         service = new ResultServices(resultDao, examDao, questionDao, resultMapper, questionMapper);
         when(questionDao.findAllByIds(any())).thenReturn(List.of());

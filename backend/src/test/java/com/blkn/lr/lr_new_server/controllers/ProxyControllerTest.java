@@ -3,13 +3,13 @@ package com.blkn.lr.lr_new_server.controllers;
 import com.blkn.lr.lr_new_server.dto.apiproxy.FluencyResult;
 import com.blkn.lr.lr_new_server.dto.apiproxy.PinyinMatchResult;
 import com.blkn.lr.lr_new_server.exception.GlobalExceptionHandler;
+import com.blkn.lr.lr_new_server.services.MediaServices;
 import com.blkn.lr.lr_new_server.services.PinyinService;
 import com.blkn.lr.lr_new_server.services.QwenAudioService;
 import com.blkn.lr.lr_new_server.util.BaiduApiManager;
 import com.blkn.lr.lr_new_server.util.FlyTekManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.core.env.Environment;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -46,8 +46,8 @@ class ProxyControllerTest {
     private BaiduApiManager baidu;
     private QwenAudioService qwenAudio;
     private FlyTekManager flyTek;
-    private Environment env;
     private PinyinService pinyin;
+    private MediaServices mediaServices;
 
     private static final String UID = "user-7";
 
@@ -56,11 +56,10 @@ class ProxyControllerTest {
         baidu = mock(BaiduApiManager.class);
         qwenAudio = mock(QwenAudioService.class);
         flyTek = mock(FlyTekManager.class);
-        env = mock(Environment.class);
         pinyin = mock(PinyinService.class);
-        when(env.getProperty("server.port")).thenReturn("8080");
+        mediaServices = mock(MediaServices.class);
 
-        ProxyController controller = new ProxyController(baidu, qwenAudio, flyTek, env, pinyin);
+        ProxyController controller = new ProxyController(baidu, qwenAudio, flyTek, pinyin, mediaServices);
         mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
@@ -236,16 +235,19 @@ class ProxyControllerTest {
 
     @Test
     void audioFromTextShouldReturnUrlAndNameOnHappyPath() throws Exception {
-        when(flyTek.synthesisAudioFromText(eq("你好"), eq(UID), eq("8080")))
+        String storageUrl = "/audio/" + UID + "/result.mp3";
+        String signedUrl = "http://localhost:8080" + storageUrl + "?expires=123&signature=sig";
+        when(flyTek.synthesisAudioFromText(eq("你好"), eq(UID)))
                 .thenReturn(CompletableFuture.completedFuture(
-                        "http://localhost:8080/audio/" + UID + "/result.mp3"));
+                        storageUrl));
+        when(mediaServices.signUrl(storageUrl)).thenReturn(signedUrl);
 
         mvc.perform(post("/api/proxy/audio_from_text")
                         .contentType("application/json")
                         .content("{\"text\":\"你好\"}")
                         .requestAttr("uid", UID))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.url").value("http://localhost:8080/audio/" + UID + "/result.mp3"))
+                .andExpect(jsonPath("$.url").value(signedUrl))
                 // name = split("/") 最后一段
                 .andExpect(jsonPath("$.name").value("result.mp3"));
     }
@@ -255,7 +257,7 @@ class ProxyControllerTest {
         @SuppressWarnings("unchecked")
         Future<String> future = mock(Future.class);
         when(future.get(anyLong(), eq(TimeUnit.SECONDS))).thenThrow(new TimeoutException("讯飞 TTS 超时"));
-        when(flyTek.synthesisAudioFromText(any(), any(), any())).thenReturn(future);
+        when(flyTek.synthesisAudioFromText(any(), any())).thenReturn(future);
 
         mvc.perform(post("/api/proxy/audio_from_text")
                         .contentType("application/json")
@@ -273,7 +275,7 @@ class ProxyControllerTest {
         Future<String> future = mock(Future.class);
         when(future.get(anyLong(), eq(TimeUnit.SECONDS)))
                 .thenThrow(new ExecutionException(new RuntimeException("讯飞鉴权失败")));
-        when(flyTek.synthesisAudioFromText(any(), any(), any())).thenReturn(future);
+        when(flyTek.synthesisAudioFromText(any(), any())).thenReturn(future);
 
         mvc.perform(post("/api/proxy/audio_from_text")
                         .contentType("application/json")

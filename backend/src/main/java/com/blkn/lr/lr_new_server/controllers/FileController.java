@@ -1,72 +1,43 @@
 package com.blkn.lr.lr_new_server.controllers;
 
-import com.blkn.lr.lr_new_server.config.AppSetting;
-import com.blkn.lr.lr_new_server.config.StaticResourcesConfig;
-import com.blkn.lr.lr_new_server.dao.impl.FileDao;
+import com.blkn.lr.lr_new_server.dto.models.media.MediaFileDto;
 import com.blkn.lr.lr_new_server.interceptor.RequireRole;
+import com.blkn.lr.lr_new_server.services.MediaServices;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.env.Environment;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
 @RequireRole({1, 2})
 @RequiredArgsConstructor
 public class FileController {
-    private final FileDao fileDao;
-    private final Environment environment;
-    private final AppSetting appSetting;
+    private final MediaServices mediaServices;
 
     @PostMapping("/image")
-    Map<String, String> uploadImages(@RequestParam("file") MultipartFile file, HttpServletRequest request) {
+    MediaFileDto uploadImages(@RequestParam("file") MultipartFile file, HttpServletRequest request) {
         String uid = (String) request.getAttribute("uid");
-        String fileName = fileDao.createImageFile(file, uid).getName();
-        return fileInfo(uid, fileName, true);
+        return mediaServices.saveImage(file, uid);
     }
 
     @PostMapping("/audio")
-    Map<String, String> uploadAudio(@RequestParam("file") MultipartFile file, HttpServletRequest request) {
+    MediaFileDto uploadAudio(@RequestParam("file") MultipartFile file, HttpServletRequest request) {
         String uid = (String) request.getAttribute("uid");
-        String fileName = fileDao.createAudioFile(file, uid).getName();
-        return fileInfo(uid, fileName, false);
-    }
-
-    private Map<String, String> fileInfo(String uid, String fileName, boolean image) {
-        String accessUrl = StaticResourcesConfig.getUrlPrefix(appSetting.getHost(), environment.getProperty("server.port"));
-        accessUrl += image
-                ? StaticResourcesConfig.getImageUrlPath(uid, fileName)
-                : StaticResourcesConfig.getAudioUrlPath(uid, fileName);
-        return Map.of("url", accessUrl, "name", fileName);
+        return mediaServices.saveAudio(file, uid);
     }
 
     @GetMapping("/images")
-    List<Map<String, String>> getAllImageInfo(HttpServletRequest request) {
+    List<MediaFileDto> getAllImageInfo(HttpServletRequest request) {
         String uid = (String) request.getAttribute("uid");
-        String urlPrefix = StaticResourcesConfig.getUrlPrefix(appSetting.getHost(), environment.getProperty("server.port"));
-
-        return fileDao.getAllImageUrlPaths(uid).stream().map(e -> {
-            String[] tokens = e.split("/");
-            String fileName = tokens[tokens.length - 1];
-
-            return Map.of("name", fileName, "url", urlPrefix + e);
-        }).toList();
+        return mediaServices.listImages(uid);
     }
 
     @GetMapping("/audios")
-    List<Map<String, String>> getAllAudioInfo(HttpServletRequest request) {
+    List<MediaFileDto> getAllAudioInfo(HttpServletRequest request) {
         String uid = (String) request.getAttribute("uid");
-        String urlPrefix = StaticResourcesConfig.getUrlPrefix(appSetting.getHost(), environment.getProperty("server.port"));
-
-        return fileDao.getAllAudioUrlPaths(uid).stream().map(e -> {
-            String[] tokens = e.split("/");
-            String fileName = tokens[tokens.length - 1];
-
-            return Map.of("name", fileName, "url", urlPrefix + e);
-        }).toList();
+        return mediaServices.listAudios(uid);
     }
 }

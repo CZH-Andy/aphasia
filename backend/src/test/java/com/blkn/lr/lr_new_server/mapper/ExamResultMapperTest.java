@@ -10,6 +10,7 @@ import com.blkn.lr.lr_new_server.models.results.ExamResult;
 import com.blkn.lr.lr_new_server.models.results.QuestionResult;
 import com.blkn.lr.lr_new_server.models.results.QuestionSnapshot;
 import com.blkn.lr.lr_new_server.models.results.SubCategoryResult;
+import com.blkn.lr.lr_new_server.services.MediaUrlService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -17,6 +18,7 @@ import org.mockito.ArgumentCaptor;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
+import java.time.Clock;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -35,7 +37,10 @@ class ExamResultMapperTest {
     @BeforeEach
     void setUp() {
         questionDao = mock(QuestionDao.class);
-        examResultMapper = new ExamResultMapper(questionDao, new QuestionMapper());
+        MediaUrlService mediaUrlService = MediaUrlService.forTesting(
+                "0123456789abcdef0123456789abcdef", 900,
+                "http://localhost:8080", Clock.systemUTC());
+        examResultMapper = new ExamResultMapper(questionDao, new QuestionMapper(mediaUrlService));
     }
 
     @Test

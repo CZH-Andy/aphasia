@@ -15,6 +15,7 @@
 - [安全与账号管理](docs/SECURITY.md)
 - [数据、备份与恢复](docs/DATA_AND_BACKUP.md)
 - [作答记录完整性与归档](docs/RESULT_DATA_INTEGRITY.md)
+- [媒体访问控制与密钥轮换](docs/MEDIA_ACCESS_CONTROL.md)
 
 ---
 
@@ -23,7 +24,7 @@
 装好 **Docker + Docker Compose** 后，三条命令把全栈（MongoDB + Redis + 后端 + LLM + 前端）跑起来：
 
 ```bash
-cp .env.example .env        # 填入 5 类外部 API 密钥（见下方表，全部需自行申请）
+cp .env.example .env        # 填入外部 API 密钥，并生成 JWT_SECRET
 docker compose up --build   # 首次构建较久（含 Maven / Flutter Web 构建）
 ```
 
@@ -31,7 +32,8 @@ docker compose up --build   # 首次构建较久（含 Maven / Flutter Web 构�
 - MongoDB 走无认证（mongo 端口不对外暴露，仅 docker 网络内可达），无需手动建用户；生产环境请自行加认证。
 - MongoDB 数据保存在 `mongo-data` 卷，上传图片/音频保存在 `media-data` 卷；重建容器不会直接丢失。
 - 容器间地址自动注入（`MONGO_HOST=mongo` / `REDIS_HOST=redis` / `LLM_SERVICE_URL=http://llm:8001`），`.env` 里这些不用填。
-- **仍需填 5 类外部密钥**（SiliconFlow / 讯飞 / 百度 / Qwen），否则诊断/语音/翻译会报错——这是第三方付费服务，绕不开。
+- **必须生成 `JWT_SECRET`**（至少 32 字节），否则后端会拒绝以不安全配置启动。
+- 仍需填 5 类外部密钥（SiliconFlow / 讯飞 / 百度 / Qwen），否则对应诊断/语音/翻译能力会报错。
 
 ```bash
 docker compose down         # 停服务（保留 Mongo 数据卷）
@@ -49,7 +51,7 @@ docker compose down -v      # 停 + 清空 Mongo 和媒体数据（仅用于明�
 ### 0. 起栈（数据自动就位）
 
 ```bash
-cp .env.example .env             # 填好 5 类外部 API key
+cp .env.example .env             # 填好外部 API key，并生成 JWT_SECRET
 docker compose up --build        # mongo 首启动自动 mongorestore 演示数据
 ```
 
@@ -200,6 +202,9 @@ cp .env.example .env
 | `SILICONFLOW_API_KEY` | SiliconFlow（诊断 / 修复，DeepSeek-V3） | <https://siliconflow.cn> |
 | `MONGO_PASSWORD` / `REDIS_PASSWORD` | 本地 Mongo/Redis 凭据 | 自行设置 |
 | `JWT_SECRET` | JWT 签名密钥（≥ 32 随机字符） | `openssl rand -hex 32` |
+| `MEDIA_SIGNING_SECRET` | 可选的独立媒体 HMAC 密钥（≥ 32 字节；默认复用 JWT_SECRET） | `openssl rand -hex 32` |
+| `APP_PUBLIC_BASE_URL` | 返回给客户端的后端完整基础 URL；生产应为 HTTPS | 如 `https://api.example.com` |
+| `MEDIA_URL_TTL_SECONDS` | 媒体签名 URL 有效期，默认 3600 秒 | `1`～`86400` |
 
 ### 3. MongoDB 用户初始化
 
@@ -355,14 +360,14 @@ flutter run \
 ## 跑测试
 
 ```bash
-# 后端 JUnit（约 330 项）
+# 后端 JUnit（372 项）
 cd backend && ./mvnw test
 
-# 前端 widget + unit test（约 97 项）
+# 前端 widget + unit test（105 项）
 cd frontend && flutter test
 flutter analyze   # 静态检查
 
-# LLM pytest（12 项：FastAPI 路由 + siliconflow 客户端）
+# LLM pytest（18 项：FastAPI 路由 + siliconflow 客户端）
 cd LLM && source .venv/bin/activate && pytest
 ```
 
