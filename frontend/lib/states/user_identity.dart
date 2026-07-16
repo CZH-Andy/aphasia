@@ -41,7 +41,11 @@ class UserIdentity extends ChangeNotifier {
   bool get isPatient => _role == 1;
   bool get isDoctor => _role == 2;
 
-  UserIdentity({required String identity, required String uid, required String token, required int role})
+  UserIdentity(
+      {required String identity,
+      required String uid,
+      required String token,
+      required int role})
       : _identity = identity,
         _uid = uid,
         _token = token,
@@ -55,9 +59,10 @@ class UserIdentity extends ChangeNotifier {
 
     try {
       Map<String, dynamic> jsonData = await HttpClientManager().post(
-          url: '${HttpConstants.backendBaseUrl}/api/auth',
+          url: '${HttpConstants.backendBaseUrl}/api/auth/token',
           body: '',
-          headers: {"Token": savedToken});
+          headers: {"Token": savedToken},
+          setToken: false);
       UserIdentity identity = UserIdentity(
           identity: jsonData['identity'],
           uid: jsonData['uid'],
@@ -76,12 +81,12 @@ class UserIdentity extends ChangeNotifier {
     }
   }
 
-  static Future<UserIdentity> login({required String identity, required String password}) async {
+  static Future<UserIdentity> login(
+      {required String identity, required String password}) async {
     try {
       Map<String, dynamic> jsonData = await HttpClientManager().post(
-          url: '${HttpConstants.backendBaseUrl}/api/auth',
-          body: '',
-          headers: {"identity": identity, "password": password},
+          url: '${HttpConstants.backendBaseUrl}/api/auth/login',
+          body: jsonEncode({"identity": identity, "password": password}),
           setToken: false);
 
       UserIdentity userIdentity = UserIdentity(
@@ -102,10 +107,12 @@ class UserIdentity extends ChangeNotifier {
     await WrappedSharedPref().deleteToken();
   }
 
-  static Future<UserIdentity> register(Map<String, dynamic> registerInfo) async {
+  static Future<UserIdentity> register(
+      Map<String, dynamic> registerInfo) async {
     try {
-      Map<String, dynamic> jsonData = await HttpClientManager()
-          .post(url: '${HttpConstants.backendBaseUrl}/api/register', body: jsonEncode(registerInfo));
+      Map<String, dynamic> jsonData = await HttpClientManager().post(
+          url: '${HttpConstants.backendBaseUrl}/api/register',
+          body: jsonEncode(registerInfo));
 
       UserIdentity identity = UserIdentity(
           identity: jsonData['identity'],
@@ -124,11 +131,13 @@ class UserIdentity extends ChangeNotifier {
   /// 把一次 [HttpRequestException] 转换为 [AuthBusinessException]，
   /// 优先使用后端 ApiResponse 中的 message，否则退化为 fallback 文案。
   /// 非业务错误状态码会按原样 rethrow，由上层统一处理网络/服务端异常。
-  static AuthBusinessException _toAuthBusinessException(HttpRequestException e, {required String fallback}) {
+  static AuthBusinessException _toAuthBusinessException(HttpRequestException e,
+      {required String fallback}) {
     if (!_businessErrorStatusCodes.contains(e.statusCode)) {
       throw e;
     }
-    return AuthBusinessException(e.statusCode, _extractServerMessage(e) ?? fallback);
+    return AuthBusinessException(
+        e.statusCode, _extractServerMessage(e) ?? fallback);
   }
 
   static String? _extractServerMessage(HttpRequestException e) {

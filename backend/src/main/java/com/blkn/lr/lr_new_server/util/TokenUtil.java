@@ -43,7 +43,7 @@ public class TokenUtil {
                     .build();
             return verifier.verify(token);
         } catch (JWTVerificationException e) {
-            log.error("Invalid token received: {}", e.getMessage());
+            log.debug("Token verification failed: {}", e.getMessage());
         } catch (Exception e) {
             log.error("Token 校验异常", e);
         }

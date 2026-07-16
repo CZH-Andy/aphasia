@@ -3,6 +3,8 @@ package com.blkn.lr.lr_new_server.services;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.blkn.lr.lr_new_server.dao.impl.UserDaoImpl;
 import com.blkn.lr.lr_new_server.dto.common.UserDto;
+import com.blkn.lr.lr_new_server.dto.request.LoginRequest;
+import com.blkn.lr.lr_new_server.exception.AuthException;
 import com.blkn.lr.lr_new_server.exception.BusinessErrorException;
 import com.blkn.lr.lr_new_server.models.common.User;
 import com.blkn.lr.lr_new_server.util.TokenUtil;
@@ -15,47 +17,59 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AccountServices {
     private static final int PATIENT_ROLE = 1;
+    private static final String INVALID_CREDENTIALS_MESSAGE = "用户名或密码错误";
 
     private final UserDaoImpl userDao;
     private final TokenUtil tokenUtil;
 
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final String dummyPasswordHash = passwordEncoder.encode("invalid-login-password");
 
-    public UserDto login(String token, String identity, String password) {
-        User user = null;
-        if (token != null) {
-            DecodedJWT decodedJWT = tokenUtil.verifyToken(token);
-            if (decodedJWT == null) {
-                throw new BusinessErrorException("token过期");
-            }
-            String uid =  decodedJWT.getClaim("uid").asString();
-            user = userDao.findById(uid);
-            if (user == null) {
-                throw new BusinessErrorException("无效的token");
-            }
+    public UserDto loginWithPassword(LoginRequest request) {
+        if (request == null) {
+            throw new BusinessErrorException("错误的登录请求");
         }
 
+        User user = userDao.findByIdentity(request.getIdentity());
         if (user == null) {
-            if (identity != null) {
-                user = userDao.findByIdentity(identity);
-                if (user == null) {
-                    throw new BusinessErrorException("用户不存在");
-                }
-
-                if (!isPasswordValid(user, password)) {
-                    throw new BusinessErrorException("用户密码错误");
-                }
-
-            } else {
-                throw new BusinessErrorException("错误的登录请求");
-            }
+            // 未知账号也执行一次 BCrypt 校验，降低通过响应耗时枚举账号的风险。
+            passwordEncoder.matches(normalizePassword(request.getPassword()), dummyPasswordHash);
+            throw new AuthException(INVALID_CREDENTIALS_MESSAGE);
         }
 
+        if (!isPasswordValid(user, request.getPassword())) {
+            throw new AuthException(INVALID_CREDENTIALS_MESSAGE);
+        }
+
+        return issueToken(user);
+    }
+
+    public UserDto loginWithToken(String token) {
+        if (token == null || token.isBlank()) {
+            throw new AuthException("缺少Token");
+        }
+
+        DecodedJWT decodedJWT = tokenUtil.verifyToken(token);
+        if (decodedJWT == null) {
+            throw new AuthException("Token无效或已过期");
+        }
+        String uid = decodedJWT.getClaim("uid").asString();
+        if (uid == null || uid.isBlank()) {
+            throw new AuthException("Token无效或已过期");
+        }
+        User user = userDao.findById(uid);
+        if (user == null) {
+            throw new AuthException("Token无效或已过期");
+        }
+
+        return issueToken(user);
+    }
+
+    private UserDto issueToken(User user) {
         UserDto dto = new UserDto(user);
         dto.setToken(tokenUtil.getToken(user.getId(), user.getRole()));
         return dto;
     }
-
 
     public UserDto register(UserDto dto) {
         String password = dto.getPassword();
@@ -79,5 +93,9 @@ public class AccountServices {
             return false;
         }
         return passwordEncoder.matches(rawPassword, encodedPassword);
+    }
+
+    private String normalizePassword(String rawPassword) {
+        return rawPassword == null ? "" : rawPassword;
     }
 }

@@ -20,8 +20,14 @@ class TestBase {
 
     // create some common mock http client method stub
     // login stub
-    when(client.post(Uri.parse('${HttpConstants.backendBaseUrl}/api/auth'), body: '{"identity": "${fake.identity}", "validateCode": "${fake.validateCode}"}'))
-        .thenAnswer((realInvocation) async => Response('{"uid": "${fake.uid}", "token": "${fake.oldToken}"}', 200));
+    when(client.post(
+            Uri.parse('${HttpConstants.backendBaseUrl}/api/auth/login'),
+            body:
+                '{"identity":"${fake.identity}","password":"${fake.validateCode}"}',
+            headers: anyNamed('headers')))
+        .thenAnswer((realInvocation) async => Response(
+            '{"identity":"${fake.identity}","uid":"${fake.uid}","token":"${fake.oldToken}","role":1}',
+            200));
   }
 
   // final String placeholder = "";

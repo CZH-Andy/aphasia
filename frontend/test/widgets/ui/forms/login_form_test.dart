@@ -15,16 +15,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../TestBase.dart';
 import '../../../fake_data.dart' as fake;
 
-/// 把 POST /api/auth stub 成返回带 [role] 的 UserIdentity payload。
+/// 把 POST /api/auth/login stub 成返回带 [role] 的 UserIdentity payload。
 ///
-/// 现 prod `UserIdentity.login` 经 `HttpClientManager.post(body:'', headers:
-/// {identity,password}, setToken:false)` 调用——body 为空串、身份信息走
-/// headers，所以 stub 必须用 `anyNamed('body') + anyNamed('headers')`，
-/// 不能再像旧测试那样写死 body 字串字面量。
+/// 现 prod `UserIdentity.login` 把 identity/password 编码进 JSON body，
+/// header 不再携带密码。
 void _stubAuthPost({required int role}) {
   final client = HttpClientManager().testClient!;
   when(client.post(
-    Uri.parse('${HttpConstants.backendBaseUrl}/api/auth'),
+    Uri.parse('${HttpConstants.backendBaseUrl}/api/auth/login'),
     body: anyNamed('body'),
     headers: anyNamed('headers'),
   )).thenAnswer((_) async => Response(

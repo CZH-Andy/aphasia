@@ -1,7 +1,11 @@
 package com.blkn.lr.lr_new_server.services;
 
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.algorithms.Algorithm;
 import com.blkn.lr.lr_new_server.dao.impl.UserDaoImpl;
 import com.blkn.lr.lr_new_server.dto.common.UserDto;
+import com.blkn.lr.lr_new_server.dto.request.LoginRequest;
+import com.blkn.lr.lr_new_server.exception.AuthException;
 import com.blkn.lr.lr_new_server.exception.BusinessErrorException;
 import com.blkn.lr.lr_new_server.models.common.User;
 import com.blkn.lr.lr_new_server.util.TokenUtil;
@@ -72,7 +76,8 @@ class AccountServicesTest {
         User user = new User("u-2", "patient001", bcryptPassword, 1);
         when(userDao.findByIdentity("patient001")).thenReturn(user);
 
-        UserDto response = accountServices.login(null, "patient001", "test-password");
+        UserDto response = accountServices.loginWithPassword(
+                loginRequest("patient001", "test-password"));
 
         assertEquals("u-2", response.getUid());
         assertNotNull(response.getToken());
@@ -84,18 +89,19 @@ class AccountServicesTest {
         User user = new User("u-3", "patient001", bcryptPassword, 1);
         when(userDao.findByIdentity("patient001")).thenReturn(user);
 
-        BusinessErrorException ex = assertThrows(BusinessErrorException.class,
-                () -> accountServices.login(null, "patient001", "wrong-password"));
-        assertEquals("用户密码错误", ex.getMessage());
+        AuthException ex = assertThrows(AuthException.class,
+                () -> accountServices.loginWithPassword(
+                        loginRequest("patient001", "wrong-password")));
+        assertEquals("用户名或密码错误", ex.getMessage());
     }
 
     @Test
     void loginShouldRejectUnknownUser() {
         when(userDao.findByIdentity("not-exist")).thenReturn(null);
 
-        BusinessErrorException ex = assertThrows(BusinessErrorException.class,
-                () -> accountServices.login(null, "not-exist", "any"));
-        assertEquals("用户不存在", ex.getMessage());
+        AuthException ex = assertThrows(AuthException.class,
+                () -> accountServices.loginWithPassword(loginRequest("not-exist", "any")));
+        assertEquals("用户名或密码错误", ex.getMessage());
     }
 
     @Test
@@ -106,22 +112,71 @@ class AccountServicesTest {
         User user = new User("u-4", "legacy-user", legacyMd5, 2);
         when(userDao.findByIdentity("legacy-user")).thenReturn(user);
 
-        BusinessErrorException ex = assertThrows(BusinessErrorException.class,
-                () -> accountServices.login(null, "legacy-user", "legacy-pass"));
-        assertEquals("用户密码错误", ex.getMessage());
+        AuthException ex = assertThrows(AuthException.class,
+                () -> accountServices.loginWithPassword(
+                        loginRequest("legacy-user", "legacy-pass")));
+        assertEquals("用户名或密码错误", ex.getMessage());
     }
 
     @Test
     void loginShouldRejectEmptyRequest() {
         BusinessErrorException ex = assertThrows(BusinessErrorException.class,
-                () -> accountServices.login(null, null, null));
+                () -> accountServices.loginWithPassword(null));
         assertEquals("错误的登录请求", ex.getMessage());
     }
 
     @Test
     void loginShouldRejectExpiredToken() {
-        BusinessErrorException ex = assertThrows(BusinessErrorException.class,
-                () -> accountServices.login("not-a-jwt", null, null));
-        assertEquals("token过期", ex.getMessage());
+        AuthException ex = assertThrows(AuthException.class,
+                () -> accountServices.loginWithToken("not-a-jwt"));
+        assertEquals("Token无效或已过期", ex.getMessage());
+    }
+
+    @Test
+    void loginWithTokenShouldRejectMissingToken() {
+        AuthException ex = assertThrows(AuthException.class,
+                () -> accountServices.loginWithToken(" "));
+        assertEquals("缺少Token", ex.getMessage());
+    }
+
+    @Test
+    void loginWithTokenShouldRejectSignedTokenWithoutUid() {
+        String tokenWithoutUid = JWT.create()
+                .withIssuer("aphasia")
+                .sign(Algorithm.HMAC256("test-secret"));
+
+        AuthException ex = assertThrows(AuthException.class,
+                () -> accountServices.loginWithToken(tokenWithoutUid));
+        assertEquals("Token无效或已过期", ex.getMessage());
+    }
+
+    @Test
+    void loginWithTokenShouldLoadCurrentUserAndIssueFreshToken() {
+        User user = new User("u-5", "patient005", "unused", 1);
+        String oldToken = tokenUtil.getToken("u-5", 1);
+        when(userDao.findById("u-5")).thenReturn(user);
+
+        UserDto response = accountServices.loginWithToken(oldToken);
+
+        assertEquals("u-5", response.getUid());
+        assertEquals("patient005", response.getIdentity());
+        assertNotNull(response.getToken());
+    }
+
+    @Test
+    void loginWithTokenShouldRejectDeletedUser() {
+        String oldToken = tokenUtil.getToken("deleted-user", 1);
+        when(userDao.findById("deleted-user")).thenReturn(null);
+
+        AuthException ex = assertThrows(AuthException.class,
+                () -> accountServices.loginWithToken(oldToken));
+        assertEquals("Token无效或已过期", ex.getMessage());
+    }
+
+    private LoginRequest loginRequest(String identity, String password) {
+        LoginRequest request = new LoginRequest();
+        request.setIdentity(identity);
+        request.setPassword(password);
+        return request;
     }
 }

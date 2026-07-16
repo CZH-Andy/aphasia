@@ -58,6 +58,28 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void shouldReturnBadRequestForMalformedJson() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"identity\":"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("请求体格式错误"));
+
+        verifyNoInteractions(accountServices);
+    }
+
+    @Test
+    void shouldReturnUnauthorizedForAuthenticationFailure() {
+        var response = new GlobalExceptionHandler()
+                .handleAuthError(new AuthException("用户名或密码错误"));
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        assertEquals(401, response.getBody().getCode());
+        assertEquals("用户名或密码错误", response.getBody().getMessage());
+    }
+
+    @Test
     void shouldReturnConflictResponseForConcurrentResultUpdate() {
         var response = new GlobalExceptionHandler()
                 .handleConflict(new ConflictException("记录已更新"));

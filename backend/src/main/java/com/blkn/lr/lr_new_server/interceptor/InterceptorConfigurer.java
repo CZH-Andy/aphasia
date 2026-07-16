@@ -32,6 +32,8 @@ public class InterceptorConfigurer implements WebMvcConfigurer {
 		registry.addInterceptor(loginInterceptor)
 			.addPathPatterns("/api/**")
 			.excludePathPatterns("/api/auth")
+			.excludePathPatterns("/api/auth/login")
+			.excludePathPatterns("/api/auth/token")
 			.excludePathPatterns("/api/register")
 		;
 	}
@@ -42,7 +44,7 @@ public class InterceptorConfigurer implements WebMvcConfigurer {
 				.allowedOriginPatterns(splitByComma(allowedOriginPatterns))
 				.allowedMethods(splitByComma(allowedMethods))
 				.allowedHeaders("*")
-				.exposedHeaders("Token");
+				.exposedHeaders("Token", "Deprecation", "Link");
 	}
 
 	private String[] splitByComma(String value) {

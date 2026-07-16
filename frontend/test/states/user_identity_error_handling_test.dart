@@ -39,12 +39,15 @@ void main() {
       'role': 1,
     });
     when(client.post(
-      Uri.parse('${HttpConstants.backendBaseUrl}/api/auth'),
-      body: '',
+      Uri.parse('${HttpConstants.backendBaseUrl}/api/auth/login'),
+      body: jsonEncode({
+        'identity': fake.identity,
+        'password': fake.validateCode,
+      }),
       headers: argThat(
           allOf(
-            containsPair('identity', fake.identity),
-            containsPair('password', fake.validateCode),
+            isNot(containsPair('identity', fake.identity)),
+            isNot(containsPair('password', fake.validateCode)),
           ),
           named: 'headers'),
     )).thenAnswer((_) async => _utf8Resp(body, 200));
@@ -62,53 +65,49 @@ void main() {
 
   test('login 错误密码 → AuthBusinessException 含后端 message', () async {
     when(client.post(
-      Uri.parse('${HttpConstants.backendBaseUrl}/api/auth'),
-      body: '',
-      headers: argThat(
-          allOf(
-            containsPair('identity', fake.identity),
-            containsPair('password', 'WRONG'),
-          ),
-          named: 'headers'),
+      Uri.parse('${HttpConstants.backendBaseUrl}/api/auth/login'),
+      body: jsonEncode({
+        'identity': fake.identity,
+        'password': 'WRONG',
+      }),
+      headers: anyNamed('headers'),
     )).thenAnswer((_) async =>
-        _utf8Resp(jsonEncode({'code': 400, 'message': '用户密码错误'}), 400));
+        _utf8Resp(jsonEncode({'code': 401, 'message': '用户名或密码错误'}), 401));
 
     expect(
       () => UserIdentity.login(identity: fake.identity, password: 'WRONG'),
       throwsA(
         isA<AuthBusinessException>()
-            .having((e) => e.statusCode, 'statusCode', 400)
-            .having((e) => e.message, 'message', '用户密码错误'),
+            .having((e) => e.statusCode, 'statusCode', 401)
+            .having((e) => e.message, 'message', '用户名或密码错误'),
       ),
     );
   });
 
-  test('login 用户不存在 → AuthBusinessException 含 message', () async {
+  test('login 用户不存在 → 使用统一凭据错误，避免枚举账号', () async {
     when(client.post(
-      Uri.parse('${HttpConstants.backendBaseUrl}/api/auth'),
-      body: '',
-      headers: argThat(
-          allOf(
-            containsPair('identity', '__nope__'),
-            containsPair('password', 'x'),
-          ),
-          named: 'headers'),
+      Uri.parse('${HttpConstants.backendBaseUrl}/api/auth/login'),
+      body: jsonEncode({
+        'identity': '__nope__',
+        'password': 'x',
+      }),
+      headers: anyNamed('headers'),
     )).thenAnswer((_) async =>
-        _utf8Resp(jsonEncode({'code': 400, 'message': '用户不存在'}), 400));
+        _utf8Resp(jsonEncode({'code': 401, 'message': '用户名或密码错误'}), 401));
 
     expect(
       () => UserIdentity.login(identity: '__nope__', password: 'x'),
       throwsA(
         isA<AuthBusinessException>()
-            .having((e) => e.message, 'message', '用户不存在'),
+            .having((e) => e.message, 'message', '用户名或密码错误'),
       ),
     );
   });
 
   test('login 5xx → 透传 HttpRequestException', () async {
     when(client.post(
-      Uri.parse('${HttpConstants.backendBaseUrl}/api/auth'),
-      body: '',
+      Uri.parse('${HttpConstants.backendBaseUrl}/api/auth/login'),
+      body: anyNamed('body'),
       headers: anyNamed('headers'),
     )).thenAnswer((_) async => _utf8Resp('boom', 500));
 
@@ -196,11 +195,11 @@ void main() {
     WrappedSharedPref.instance = null;
 
     when(client.post(
-      Uri.parse('${HttpConstants.backendBaseUrl}/api/auth'),
+      Uri.parse('${HttpConstants.backendBaseUrl}/api/auth/token'),
       body: '',
       headers: argThat(containsPair('Token', 'stale-token'), named: 'headers'),
     )).thenAnswer((_) async =>
-        _utf8Resp(jsonEncode({'code': 400, 'message': 'token过期'}), 400));
+        _utf8Resp(jsonEncode({'code': 401, 'message': 'Token无效或已过期'}), 401));
 
     final result = await UserIdentity.authWithToken();
     expect(result, isNull);
