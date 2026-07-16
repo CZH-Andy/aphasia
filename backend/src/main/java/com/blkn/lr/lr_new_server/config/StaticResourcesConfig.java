@@ -8,20 +8,22 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Configuration
 public class StaticResourcesConfig implements WebMvcConfigurer {
     public static final String IMAGE_DIR = "images";
     public static final String AUDIO_DIR = "audio";
+    private static final Pattern SAFE_PATH_SEGMENT = Pattern.compile("[A-Za-z0-9_-]{1,128}");
 
     static public String getImageUrlPath(String uid, String fileName) {
         return "/" + StaticResourcesConfig.IMAGE_DIR + "/" + uid + "/" + fileName;
     }
 
     static public String getImageDirPath(String uid) {
-        String workingDir = System.getProperty("user.dir");
-        return workingDir + File.separator + StaticResourcesConfig.IMAGE_DIR + File.separator + uid + File.separator;
+        return getMediaDirPath(StaticResourcesConfig.IMAGE_DIR, uid);
     }
 
     static public String getAudioUrlPath(String uid, String fileName) {
@@ -29,12 +31,22 @@ public class StaticResourcesConfig implements WebMvcConfigurer {
     }
 
     static public String getAudioDirPath(String uid) {
-        String workingDir = System.getProperty("user.dir");
-        return workingDir + File.separator + StaticResourcesConfig.AUDIO_DIR + File.separator + uid + File.separator;
+        return getMediaDirPath(StaticResourcesConfig.AUDIO_DIR, uid);
     }
 
     static public String getUrlPrefix(String host, String port) {
         return "http://" + host + ":" + port;
+    }
+
+    private static String getMediaDirPath(String mediaType, String uid) {
+        if (uid == null || !SAFE_PATH_SEGMENT.matcher(uid).matches()) {
+            throw new IllegalArgumentException("非法用户标识");
+        }
+        String configuredRoot = System.getenv("MEDIA_ROOT");
+        String root = configuredRoot == null || configuredRoot.isBlank()
+                ? System.getProperty("user.dir")
+                : configuredRoot;
+        return Path.of(root, mediaType, uid).toString() + File.separator;
     }
 
 //    public static final String RESOURCES_DIR = "resources";
@@ -44,7 +56,10 @@ public class StaticResourcesConfig implements WebMvcConfigurer {
 //    public static final String RESOURCES_PATH = "/resources";
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        String workingDir = System.getProperty("user.dir");
+        String configuredRoot = System.getenv("MEDIA_ROOT");
+        String workingDir = configuredRoot == null || configuredRoot.isBlank()
+                ? System.getProperty("user.dir")
+                : configuredRoot;
 
         File imgDir = new File(workingDir + File.separator + IMAGE_DIR);
         File videoDir = new File(workingDir + File.separator + AUDIO_DIR);

@@ -18,6 +18,8 @@ public interface ExamDao {
 
     Exam findPublishedExamById(String examId);
 
+    Exam findOwnedExamById(String examId, String ownerId);
+
     List<Exam> getExamsByDoctorId(String targetUID, boolean isRecovery);
 
     long addCategoryIntoExam(String examId, QuestionCategory model);

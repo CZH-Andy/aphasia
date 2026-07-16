@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class AccountServices {
+    private static final int PATIENT_ROLE = 1;
+
     private final UserDaoImpl userDao;
     private final TokenUtil tokenUtil;
 
@@ -60,12 +62,14 @@ public class AccountServices {
 
         User user = new User();
         user.setIdentity(dto.getIdentity());
-        user.setRole(dto.getRole());
+        // 不信任客户端提交的角色。公开注册永远创建患者账号；
+        // 医生账号由受控的管理员/数据初始化流程创建。
+        user.setRole(PATIENT_ROLE);
         user.setPassword(passwordEncoder.encode(password));
 
         User created = userDao.register(user);
         UserDto dtoToReturn = new UserDto(created);
-        dtoToReturn.setToken(tokenUtil.getToken(created.getId(), user.getRole()));
+        dtoToReturn.setToken(tokenUtil.getToken(created.getId(), PATIENT_ROLE));
         return dtoToReturn;
     }
 

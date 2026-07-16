@@ -34,6 +34,18 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(404, message == null ? "资源不存在" : message));
     }
 
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ApiResponse<Object>> handleForbidden(ForbiddenException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(403, ex.getMessage()));
+    }
+
+    @ExceptionHandler(FileUploadException.class)
+    public ResponseEntity<ApiResponse<Object>> handleFileUpload(FileUploadException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(400, ex.getMessage()));
+    }
+
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiResponse<Object>> handleNoResource(NoResourceFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)

@@ -7,6 +7,7 @@ import com.blkn.lr.lr_new_server.dto.models.exam.QuestionCategoryDto;
 import com.blkn.lr.lr_new_server.dto.models.exam.QuestionSubCategoryDto;
 import com.blkn.lr.lr_new_server.dto.models.question.QuestionDto;
 import com.blkn.lr.lr_new_server.exception.BusinessErrorException;
+import com.blkn.lr.lr_new_server.exception.ForbiddenException;
 import com.blkn.lr.lr_new_server.exception.NotFoundException;
 import com.blkn.lr.lr_new_server.mapper.ExamMapper;
 import com.blkn.lr.lr_new_server.mapper.QuestionMapper;
@@ -21,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @Service
@@ -48,6 +50,12 @@ public class ExamServices {
         return examDao.getExamsByDoctorId(targetUID, isRecovery).stream()
                 .map(examMapper::toDto)
                 .toList();
+    }
+
+    public void requireExamOwner(String examId, String ownerId) {
+        if (examDao.findOwnedExamById(examId, ownerId) == null) {
+            throw new ForbiddenException("无权操作该套题");
+        }
     }
 
     public long deleteExam(String examId) {
@@ -145,7 +153,13 @@ public class ExamServices {
         return questionMapper.toDto(created);
     }
 
-    public QuestionDto updateQuestion(QuestionDto dto, String uid) {
+    public QuestionDto updateQuestion(String questionId, QuestionDto dto, String uid) {
+        Question existing = questionDao.findById(questionId);
+        if (existing == null || !Objects.equals(existing.getOwnerId(), uid)) {
+            throw new ForbiddenException("无权操作该题目");
+        }
+        // URL 中的资源 id 是权威值，禁止通过请求体把更新重定向到其他题目。
+        dto.setId(questionId);
         Question saved = questionDao.save(questionMapper.toModel(dto, uid));
         return questionMapper.toDto(saved);
     }

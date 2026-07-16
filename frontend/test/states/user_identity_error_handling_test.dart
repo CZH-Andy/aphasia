@@ -14,7 +14,8 @@ import '../fake_data.dart' as fake;
 
 /// 把字符串响应封装成支持中文的 UTF-8 Response。
 Response _utf8Resp(String body, int code) =>
-    Response.bytes(utf8.encode(body), code, headers: {'content-type': 'application/json; charset=utf-8'});
+    Response.bytes(utf8.encode(body), code,
+        headers: {'content-type': 'application/json; charset=utf-8'});
 
 /// 验证 UserIdentity 在新统一 ApiResponse 体下，
 /// 把 400/401/403/404/409 都解析为 AuthBusinessException 并提取后端 message。
@@ -112,8 +113,10 @@ void main() {
     )).thenAnswer((_) async => _utf8Resp('boom', 500));
 
     expect(
-      () => UserIdentity.login(identity: fake.identity, password: fake.validateCode),
-      throwsA(isA<HttpRequestException>().having((e) => e.statusCode, 'statusCode', 500)),
+      () => UserIdentity.login(
+          identity: fake.identity, password: fake.validateCode),
+      throwsA(isA<HttpRequestException>()
+          .having((e) => e.statusCode, 'statusCode', 500)),
     );
   });
 
@@ -129,7 +132,7 @@ void main() {
       () => UserIdentity.register({
         'identity': fake.identity,
         'password': 'abc1234',
-        'role': 2,
+        'role': 1,
       }),
       throwsA(
         isA<AuthBusinessException>()
@@ -145,7 +148,7 @@ void main() {
       body: anyNamed('body'),
       headers: anyNamed('headers'),
     )).thenAnswer((_) async => _utf8Resp(
-        jsonEncode({'code': 400, 'message': 'role role必须为1或2'}), 400));
+        jsonEncode({'code': 400, 'message': 'role 公开注册仅支持患者角色1'}), 400));
 
     expect(
       () => UserIdentity.register({
@@ -162,10 +165,10 @@ void main() {
 
   test('register 成功路径返回 UserIdentity', () async {
     final body = jsonEncode({
-      'identity': 'newdoc',
+      'identity': 'newpatient',
       'uid': 'u-new',
       'token': fake.oldToken,
-      'role': 2,
+      'role': 1,
     });
     when(client.post(
       Uri.parse('${HttpConstants.backendBaseUrl}/api/register'),
@@ -174,13 +177,13 @@ void main() {
     )).thenAnswer((_) async => _utf8Resp(body, 200));
 
     final identity = await UserIdentity.register({
-      'identity': 'newdoc',
+      'identity': 'newpatient',
       'password': 'abc1234',
-      'role': 2,
+      'role': 1,
     });
 
-    expect(identity.identity, 'newdoc');
-    expect(identity.isDoctor, true);
+    expect(identity.identity, 'newpatient');
+    expect(identity.isPatient, true);
   });
 
   test('authWithToken 无 saved token → null', () async {
@@ -195,9 +198,7 @@ void main() {
     when(client.post(
       Uri.parse('${HttpConstants.backendBaseUrl}/api/auth'),
       body: '',
-      headers: argThat(
-          containsPair('Token', 'stale-token'),
-          named: 'headers'),
+      headers: argThat(containsPair('Token', 'stale-token'), named: 'headers'),
     )).thenAnswer((_) async =>
         _utf8Resp(jsonEncode({'code': 400, 'message': 'token过期'}), 400));
 

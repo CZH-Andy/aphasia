@@ -7,6 +7,7 @@ import com.blkn.lr.lr_new_server.dto.models.exam.QuestionCategoryDto;
 import com.blkn.lr.lr_new_server.dto.models.exam.QuestionSubCategoryDto;
 import com.blkn.lr.lr_new_server.dto.models.question.QuestionDto;
 import com.blkn.lr.lr_new_server.exception.BusinessErrorException;
+import com.blkn.lr.lr_new_server.exception.ForbiddenException;
 import com.blkn.lr.lr_new_server.exception.NotFoundException;
 import com.blkn.lr.lr_new_server.mapper.ExamMapper;
 import com.blkn.lr.lr_new_server.mapper.QuestionMapper;
@@ -133,6 +134,26 @@ class ExamServicesTest {
 
         assertEquals(0, service.getExamsByDoctorId(UID, true).size());
         verify(examDao).getExamsByDoctorId(UID, true);
+    }
+
+    @Test
+    void requireExamOwnerShouldPassWhenOwnedExamExists() {
+        when(examDao.findOwnedExamById(EXAM_ID, UID)).thenReturn(new Exam());
+
+        service.requireExamOwner(EXAM_ID, UID);
+
+        verify(examDao).findOwnedExamById(EXAM_ID, UID);
+    }
+
+    @Test
+    void requireExamOwnerShouldRejectMissingOrForeignExam() {
+        when(examDao.findOwnedExamById(EXAM_ID, UID)).thenReturn(null);
+
+        ForbiddenException error = assertThrows(
+                ForbiddenException.class,
+                () -> service.requireExamOwner(EXAM_ID, UID));
+
+        assertEquals("无权操作该套题", error.getMessage());
     }
 
     // ============================================================
@@ -414,16 +435,34 @@ class ExamServicesTest {
 
     @Test
     void updateQuestionShouldRoundTripThroughMapperAndDao() {
+        String questionId = "q-7";
         QuestionDto dto = new QuestionDto();
+        dto.setId("body-controlled-id");
+        Question existing = new Question();
+        existing.setId(questionId);
+        existing.setOwnerId(UID);
         Question toSave = new Question();
         Question saved = new Question();
         QuestionDto returnedDto = new QuestionDto();
 
+        when(questionDao.findById(questionId)).thenReturn(existing);
         when(questionMapper.toModel(dto, UID)).thenReturn(toSave);
         when(questionDao.save(toSave)).thenReturn(saved);
         when(questionMapper.toDto(saved)).thenReturn(returnedDto);
 
-        assertSame(returnedDto, service.updateQuestion(dto, UID));
+        assertSame(returnedDto, service.updateQuestion(questionId, dto, UID));
+        assertEquals(questionId, dto.getId());
+    }
+
+    @Test
+    void updateQuestionShouldRejectForeignOwner() {
+        Question existing = new Question();
+        existing.setOwnerId("other-doctor");
+        when(questionDao.findById("q-7")).thenReturn(existing);
+
+        assertThrows(ForbiddenException.class,
+                () -> service.updateQuestion("q-7", new QuestionDto(), UID));
+        verify(questionDao, never()).save(any());
     }
 
     @Test

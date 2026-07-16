@@ -3,7 +3,6 @@ package com.blkn.lr.lr_new_server.controllers;
 import com.blkn.lr.lr_new_server.config.AppSetting;
 import com.blkn.lr.lr_new_server.config.StaticResourcesConfig;
 import com.blkn.lr.lr_new_server.dao.impl.FileDao;
-import com.blkn.lr.lr_new_server.exception.BusinessErrorException;
 import com.blkn.lr.lr_new_server.interceptor.RequireRole;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +12,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 @RestController
 @RequestMapping("/api")
@@ -26,30 +24,23 @@ public class FileController {
 
     @PostMapping("/image")
     Map<String, String> uploadImages(@RequestParam("file") MultipartFile file, HttpServletRequest request) {
-        return uploadFile(file, request);
+        String uid = (String) request.getAttribute("uid");
+        String fileName = fileDao.createImageFile(file, uid).getName();
+        return fileInfo(uid, fileName, true);
     }
 
     @PostMapping("/audio")
     Map<String, String> uploadAudio(@RequestParam("file") MultipartFile file, HttpServletRequest request) {
-        return uploadFile(file, request);
+        String uid = (String) request.getAttribute("uid");
+        String fileName = fileDao.createAudioFile(file, uid).getName();
+        return fileInfo(uid, fileName, false);
     }
 
-    private Map<String, String> uploadFile(MultipartFile file, HttpServletRequest request) {
-        String uid = (String) request.getAttribute("uid");
-
-        String contentType = Objects.requireNonNull(file.getContentType());
+    private Map<String, String> fileInfo(String uid, String fileName, boolean image) {
         String accessUrl = StaticResourcesConfig.getUrlPrefix(appSetting.getHost(), environment.getProperty("server.port"));
-        String fileName;
-        if (contentType.contains("audio/")) {
-            fileName = fileDao.createAudioFile(file, uid).getName();
-            accessUrl += StaticResourcesConfig.getAudioUrlPath(uid, fileName);
-        } else if (contentType.contains("image/")){
-            fileName = fileDao.createImageFile(file, uid).getName();
-            accessUrl += StaticResourcesConfig.getImageUrlPath(uid, fileName);
-        } else {
-            throw new BusinessErrorException("不支持的文件类型");
-        }
-
+        accessUrl += image
+                ? StaticResourcesConfig.getImageUrlPath(uid, fileName)
+                : StaticResourcesConfig.getAudioUrlPath(uid, fileName);
         return Map.of("url", accessUrl, "name", fileName);
     }
 

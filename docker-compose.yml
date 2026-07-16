@@ -52,6 +52,9 @@ services:
       MONGO_HOST: mongo
       REDIS_HOST: redis
       LLM_SERVICE_URL: http://llm:8001
+      MEDIA_ROOT: /app/media
+    volumes:
+      - media-data:/app/media
     ports:
       - "8080:8080"
     depends_on:
@@ -79,3 +82,4 @@ services:
 
 volumes:
   mongo-data:
+  media-data:

@@ -14,6 +14,7 @@ import org.springframework.data.mongodb.core.ExecutableUpdateOperation.Terminati
 import org.springframework.data.mongodb.core.ExecutableUpdateOperation.UpdateWithUpdate;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.CriteriaDefinition;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 
 import java.util.LinkedList;
@@ -22,6 +23,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -101,6 +103,26 @@ class ExamDaoImplTest {
         when(template.findById(EXAM_ID, Exam.class)).thenReturn(exam);
 
         assertNull(dao.findPublishedExamById(EXAM_ID));
+    }
+
+    @Test
+    void findOwnedExamByIdShouldQueryByIdOwnerAndActiveState() {
+        Exam exam = simpleExam();
+        when(template.findOne(any(Query.class), eq(Exam.class))).thenReturn(exam);
+
+        assertEquals(exam, dao.findOwnedExamById(EXAM_ID, "doctor-1"));
+
+        ArgumentCaptor<Query> captor = ArgumentCaptor.forClass(Query.class);
+        verify(template).findOne(captor.capture(), eq(Exam.class));
+        String query = captor.getValue().getQueryObject().toJson();
+        assertTrue(query.contains("ownerId"), query);
+        assertTrue(query.contains("isDisabled"), query);
+    }
+
+    @Test
+    void findOwnedExamByIdShouldRejectInvalidIdWithoutQuery() {
+        assertNull(dao.findOwnedExamById("not-an-object-id", "doctor-1"));
+        verify(template, never()).findOne(any(Query.class), eq(Exam.class));
     }
 
     @Test

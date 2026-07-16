@@ -10,6 +10,11 @@
 
 三件套**跨进程通信**：前端 HTTP 调后端，后端 OkHttp 调 LLM 微服务。
 
+安全边界与数据归档：
+
+- [安全与账号管理](docs/SECURITY.md)
+- [数据、备份与恢复](docs/DATA_AND_BACKUP.md)
+
 ---
 
 ## 🐳 Docker 一键启动（推荐）
@@ -23,12 +28,13 @@ docker compose up --build   # 首次构建较久（含 Maven / Flutter Web 构�
 
 - 前端：<http://localhost:8088>　后端：<http://localhost:8080>
 - MongoDB 走无认证（mongo 端口不对外暴露，仅 docker 网络内可达），无需手动建用户；生产环境请自行加认证。
+- MongoDB 数据保存在 `mongo-data` 卷，上传图片/音频保存在 `media-data` 卷；重建容器不会直接丢失。
 - 容器间地址自动注入（`MONGO_HOST=mongo` / `REDIS_HOST=redis` / `LLM_SERVICE_URL=http://llm:8001`），`.env` 里这些不用填。
 - **仍需填 5 类外部密钥**（SiliconFlow / 讯飞 / 百度 / Qwen），否则诊断/语音/翻译会报错——这是第三方付费服务，绕不开。
 
 ```bash
 docker compose down         # 停服务（保留 Mongo 数据卷）
-docker compose down -v      # 停 + 清空 Mongo 数据（重置）
+docker compose down -v      # 停 + 清空 Mongo 和媒体数据（仅用于明确重置）
 ```
 
 > 不想用 Docker、要本地起裸进程开发，走下面的「一次性环境准备」。
@@ -68,6 +74,8 @@ docker compose up --build        # mongo 首启动自动 mongorestore 演示数�
 
 > ⚠️ **登录名必须是手机号或邮箱**：前端登录表单有客户端校验（`^1[3-9]\d{9}$` 或邮箱正则），
 > `demo_doctor` 这类随意字符串会被前端直接拦下，登不进去（后端其实不挑）。
+>
+> 公开注册只创建患者账号。医生账号必须由管理员审核创建；演示环境直接使用上表的医生账号。
 
 打开 <http://localhost:8088> 开始。底部 3 个 tab 随角色变：
 **搜索/套题管理** · **人工智能服务** · **我的（历史）**。
@@ -146,7 +154,7 @@ docker compose up --build        # mongo 首启动自动 mongorestore 演示数�
 
 ```bash
 docker compose down             # 停服务，数据留在 mongo-data 卷（重启不丢，可反复演）
-docker compose down -v          # 连数据一起清空，下次要重新 ./seed/seed.sh
+docker compose down -v          # 清空 Mongo + 上传媒体，下次要重新灌种子
 ```
 
 > 注意：`seed.sh` 每跑一次会**新建**一套套题（不会去重），重复跑会留多套。要干净状态就先 `down -v`。

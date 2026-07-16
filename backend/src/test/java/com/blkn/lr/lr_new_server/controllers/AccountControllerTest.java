@@ -13,6 +13,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -67,5 +68,15 @@ class AccountControllerTest {
                 .andExpect(status().isOk());
 
         verify(service).register(any());
+    }
+
+    @Test
+    void registerShouldRejectDoctorRole() throws Exception {
+        mvc.perform(post("/api/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"identity\":\"bob\",\"password\":\"pwd\",\"role\":2}"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(service);
     }
 }

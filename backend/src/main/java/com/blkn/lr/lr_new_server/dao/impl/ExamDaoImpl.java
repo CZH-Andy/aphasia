@@ -40,6 +40,17 @@ public class ExamDaoImpl implements ExamDao {
         }
     }
 
+    public Exam findOwnedExamById(String examId, String ownerId) {
+        if (ownerId == null || !ObjectId.isValid(examId)) {
+            return null;
+        }
+        return template.findOne(
+                query(where("_id").is(new ObjectId(examId))
+                        .and("ownerId").is(ownerId)
+                        .and("isDisabled").ne(true)),
+                Exam.class);
+    }
+
     public List<Exam> getExamsByDoctorId(String targetUID, boolean isRecovery) {
         return template.find(new BasicQuery("{ownerId: \"" + targetUID + "\", isRecovery: " + isRecovery + ", isDisabled: " + false + "}"), Exam.class);
     }

@@ -23,8 +23,12 @@ public class UserDto {
     String uid;
     String token;
 
-    @Min(value = 1, message = "role必须为1或2")
-    @Max(value = 2, message = "role必须为1或2")
+    /**
+     * 公开注册只允许创建患者账号。医生账号必须通过受控的后台流程或种子数据创建。
+     * 登录响应仍可正常返回 role=2；校验只发生在 @Valid 注册请求上。
+     */
+    @Min(value = 1, message = "公开注册仅支持患者角色1")
+    @Max(value = 1, message = "公开注册仅支持患者角色1")
     int role;
 
     public UserDto(User user) {

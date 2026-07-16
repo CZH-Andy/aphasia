@@ -58,9 +58,8 @@ public class FlyTekManager {
         Request request = new Request.Builder().url(authedUrl).build();
         CompletableFuture<String> future = new CompletableFuture<>();
 
-        String safeStem = (text.length() > 20 ? text.substring(0, 20) : text)
-                .replaceAll("[\\\\/:*?\"<>|\\s]", "_");
-        String fileName = safeStem + ".mp3";
+        // 不把患者/题干文本暴露在文件名里，也避免同文本并发生成时互相覆盖。
+        String fileName = UUID.randomUUID() + ".mp3";
         String destFilePath = StaticResourcesConfig.getAudioDirPath(uid) + fileName;
         String fileUrlPath = StaticResourcesConfig.getUrlPrefix(appSetting.getHost(), serverPort)
                 + StaticResourcesConfig.getAudioUrlPath(uid, fileName);

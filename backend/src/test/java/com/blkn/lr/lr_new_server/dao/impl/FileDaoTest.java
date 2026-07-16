@@ -1,7 +1,8 @@
 package com.blkn.lr.lr_new_server.dao.impl;
 
-import com.blkn.lr.lr_new_server.exception.BusinessErrorException;
 import com.blkn.lr.lr_new_server.exception.FileIOException;
+import com.blkn.lr.lr_new_server.exception.FileSizeException;
+import com.blkn.lr.lr_new_server.exception.FileTypeException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,9 +16,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -88,13 +87,13 @@ class FileDaoTest {
     void createImageFileShouldWriteBytesToImageDirUnderUid() throws Exception {
         String uid = "user-img-1";
         MockMultipartFile mf = new MockMultipartFile(
-                "file", "pic.png", "image/png", new byte[]{1, 2, 3, 4});
+                "file", "../../pic.png", "image/png", pngBytes());
 
         File result = fileDao.createImageFile(mf, uid);
 
-        assertEquals("pic.png", result.getName());
+        assertTrue(result.getName().matches("[0-9a-f-]{36}\\.png"));
         assertTrue(result.exists(), "目标文件应已写入");
-        assertEquals(4, Files.size(result.toPath()), "字节数应与 multipart 一致");
+        assertEquals(pngBytes().length, Files.size(result.toPath()), "字节数应与 multipart 一致");
         // 父目录应在 tempDir/images/<uid>
         assertEquals(tempDir.resolve("images").resolve(uid).toFile().getCanonicalPath(),
                 result.getParentFile().getCanonicalPath());
@@ -104,37 +103,38 @@ class FileDaoTest {
     void createAudioFileShouldWriteBytesToAudioDirUnderUid() throws Exception {
         String uid = "user-aud-1";
         MockMultipartFile mf = new MockMultipartFile(
-                "file", "voice.wav", "audio/wav", new byte[]{9, 8, 7});
+                "file", "../voice.wav", "audio/wav", wavBytes());
 
         File result = fileDao.createAudioFile(mf, uid);
 
         assertTrue(result.exists());
-        assertEquals(3, Files.size(result.toPath()));
+        assertEquals(wavBytes().length, Files.size(result.toPath()));
+        assertTrue(result.getName().matches("[0-9a-f-]{36}\\.wav"));
         assertEquals(tempDir.resolve("audio").resolve(uid).toFile().getCanonicalPath(),
                 result.getParentFile().getCanonicalPath());
     }
 
     @Test
-    void createImageFileShouldOverwriteExistingFile() throws Exception {
-        // 同名再传一次：走 destFile.exists() == true → delete() 分支
+    void createImageFileShouldGenerateUniqueNamesForSameOriginalFilename() {
         String uid = "user-img-2";
         MockMultipartFile first = new MockMultipartFile(
-                "file", "x.png", "image/png", new byte[]{1, 1, 1});
-        fileDao.createImageFile(first, uid);
+                "file", "x.png", "image/png", pngBytes());
+        File firstSaved = fileDao.createImageFile(first, uid);
 
         MockMultipartFile second = new MockMultipartFile(
-                "file", "x.png", "image/png", new byte[]{2, 2, 2, 2, 2});
-        File overwritten = fileDao.createImageFile(second, uid);
+                "file", "x.png", "image/png", pngBytes());
+        File secondSaved = fileDao.createImageFile(second, uid);
 
-        assertTrue(overwritten.exists());
-        assertEquals(5, Files.size(overwritten.toPath()), "新内容应覆盖旧内容");
+        assertTrue(firstSaved.exists());
+        assertTrue(secondSaved.exists());
+        assertTrue(!firstSaved.getName().equals(secondSaved.getName()));
     }
 
     @Test
     void createImageFileShouldThrowFileIoExceptionWhenTransferToFails() {
         // MultipartFile.transferTo 抛 IOException → 应翻成 FileIOException（不直接吐 IOException）
         MultipartFile failing = new MockMultipartFile(
-                "file", "boom.png", "image/png", new byte[]{1}) {
+                "file", "boom.png", "image/png", pngBytes()) {
             @Override
             public void transferTo(@org.jetbrains.annotations.NotNull File dest) throws IOException {
                 throw new IOException("磁盘满");
@@ -146,24 +146,32 @@ class FileDaoTest {
     }
 
     @Test
-    void createImageFileShouldThrowBusinessErrorWhenDeleteFails() throws Exception {
-        // 极少触发但分支真实存在：destFile.exists() && !destFile.delete() 返 true
-        // 用 MultipartFile.getOriginalFilename() 返回的"空字符串"打到目录上 ——
-        // 目标 path 实际是 .../images/<uid>/，destFile 解析为目录本身，
-        // delete() 一个非空目录返回 false → 触发 BusinessErrorException。
-        String uid = "user-img-3";
-        // 先放一个文件进去，保证目录非空且 dest 解析为目录
-        MockMultipartFile seed = new MockMultipartFile(
-                "file", "seed.png", "image/png", new byte[]{1});
-        fileDao.createImageFile(seed, uid);
+    void createImageFileShouldRejectSpoofedMimeType() {
+        MockMultipartFile fake = new MockMultipartFile(
+                "file", "fake.png", "image/png", "not-an-image".getBytes());
 
-        // 现在传一个 originalFilename 为空的 file —— dest path 拼成 "<dir>/"
-        // new File("<dir>/") 等价于 new File("<dir>")，对应已存在的非空目录
-        MockMultipartFile emptyName = new MockMultipartFile(
-                "file", "", "image/png", new byte[]{2});
+        assertThrows(FileTypeException.class,
+                () -> fileDao.createImageFile(fake, "user-img-3"));
+    }
 
-        assertThrows(BusinessErrorException.class,
-                () -> fileDao.createImageFile(emptyName, uid));
+    @Test
+    void createAudioFileShouldRejectImageBytes() {
+        MockMultipartFile fake = new MockMultipartFile(
+                "file", "fake.wav", "audio/wav", pngBytes());
+
+        assertThrows(FileTypeException.class,
+                () -> fileDao.createAudioFile(fake, "user-aud-3"));
+    }
+
+    @Test
+    void createImageFileShouldRejectOversizedFile() {
+        byte[] oversized = new byte[10 * 1024 * 1024 + 1];
+        System.arraycopy(pngBytes(), 0, oversized, 0, pngBytes().length);
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "large.png", "image/png", oversized);
+
+        assertThrows(FileSizeException.class,
+                () -> fileDao.createImageFile(file, "user-img-large"));
     }
 
     // ============================================================
@@ -175,23 +183,26 @@ class FileDaoTest {
         String uid = "user-img-list";
         // 写两张图
         fileDao.createImageFile(new MockMultipartFile(
-                "f", "a.png", "image/png", new byte[]{1}), uid);
+                "f", "a.png", "image/png", pngBytes()), uid);
         fileDao.createImageFile(new MockMultipartFile(
-                "f", "b.jpg", "image/jpeg", new byte[]{2}), uid);
+                "f", "b.jpg", "image/jpeg", jpegBytes()), uid);
 
         List<String> urls = fileDao.getAllImageUrlPaths(uid);
-        Set<String> set = urls.stream().collect(Collectors.toSet());
-        assertEquals(Set.of("/images/" + uid + "/a.png", "/images/" + uid + "/b.jpg"), set);
+        assertEquals(2, urls.size());
+        assertTrue(urls.stream().allMatch(path -> path.startsWith("/images/" + uid + "/")));
+        assertTrue(urls.stream().anyMatch(path -> path.endsWith(".png")));
+        assertTrue(urls.stream().anyMatch(path -> path.endsWith(".jpg")));
     }
 
     @Test
     void getAllAudioUrlPathsShouldReturnAllFileNamesUnderUid() throws Exception {
         String uid = "user-aud-list";
         fileDao.createAudioFile(new MockMultipartFile(
-                "f", "c.wav", "audio/wav", new byte[]{1}), uid);
+                "f", "c.wav", "audio/wav", wavBytes()), uid);
 
         List<String> urls = fileDao.getAllAudioUrlPaths(uid);
-        assertEquals(List.of("/audio/" + uid + "/c.wav"), urls);
+        assertEquals(1, urls.size());
+        assertTrue(urls.get(0).matches("/audio/" + uid + "/[0-9a-f-]{36}\\.wav"));
     }
 
     @Test
@@ -201,5 +212,26 @@ class FileDaoTest {
         Files.createDirectories(tempDir.resolve("images").resolve(uid));
 
         assertEquals(List.of(), fileDao.getAllImageUrlPaths(uid));
+    }
+
+    private static byte[] pngBytes() {
+        return new byte[]{
+                (byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+                0x00, 0x00, 0x00, 0x00
+        };
+    }
+
+    private static byte[] jpegBytes() {
+        return new byte[]{
+                (byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0,
+                0x00, 0x10, 0x4A, 0x46, 0x49, 0x46
+        };
+    }
+
+    private static byte[] wavBytes() {
+        return new byte[]{
+                0x52, 0x49, 0x46, 0x46, 0x04, 0x00, 0x00, 0x00,
+                0x57, 0x41, 0x56, 0x45, 0x66, 0x6D, 0x74, 0x20
+        };
     }
 }

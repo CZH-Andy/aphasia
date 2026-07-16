@@ -36,6 +36,14 @@ void _stubAuthPost({required int role}) {
         }),
         200,
       ));
+
+  if (role == 2) {
+    when(client.get(
+      Uri.parse(
+          '${HttpConstants.backendBaseUrl}/api/doctors/${fake.uid}/exams'),
+      headers: anyNamed('headers'),
+    )).thenAnswer((_) async => Response('[]', 200));
+  }
 }
 
 void main() {
@@ -96,8 +104,7 @@ void main() {
     });
   });
 
-  testWidgets(
-      "LoginPage 密码登录 happy path（患者 role=1 → HomePage）",
+  testWidgets("LoginPage 密码登录 happy path（患者 role=1 → HomePage）",
       (tester) async {
     _stubAuthPost(role: 1);
 
@@ -119,22 +126,22 @@ void main() {
     });
   });
 
-  testWidgets(
-      "LoginPage isEntry=false 登录后 Navigator.pop 回上一路由（不替换）",
+  testWidgets("LoginPage isEntry=false 登录后 Navigator.pop 回上一路由（不替换）",
       (tester) async {
     _stubAuthPost(role: 1);
 
     // 用一个 base Scaffold 作为初始路由，往上 push 一个 isEntry=false 的
     // LoginPage——成功登录后 prod 走 Navigator.pop 回到 base，不再 push 任何
     // 后续页面。
-    await TestBase.testWithFullGlobalStates(tester,
-        const Scaffold(body: Center(child: Text("__base_route__"))), () async {
-      final baseCtx =
-          tester.element(find.text("__base_route__"));
+    await TestBase.testWithFullGlobalStates(
+        tester, const Scaffold(body: Center(child: Text("__base_route__"))),
+        () async {
+      final baseCtx = tester.element(find.text("__base_route__"));
       Navigator.push(
         baseCtx,
         MaterialPageRoute(
-            builder: (_) => const LoginPage(isEntry: false, commonStyles: null)),
+            builder: (_) =>
+                const LoginPage(isEntry: false, commonStyles: null)),
       );
       await tester.pumpAndSettle();
 

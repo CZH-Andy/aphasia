@@ -35,6 +35,8 @@ $RECYCLE.BIN/
 # --------- 日志 / 临时文件 ---------
 *.log
 logs/
+backup/
+backups/
 *.tmp
 *.temp
 *.bak
@@ -106,4 +108,3 @@ node_modules/
 dist/
 out/
 coverage/
-

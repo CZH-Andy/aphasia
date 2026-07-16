@@ -128,9 +128,10 @@ class ExamControllerTest {
 
     @Test
     void updateExamNameShouldRoute() throws Exception {
-        mvc.perform(patch("/api/exams/e1/name/newName123"))
+        mvc.perform(patch("/api/exams/e1/name/newName123").requestAttr("uid", UID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.msg").value("ok"));
+        verify(examServices).requireExamOwner(EXAM_ID, UID);
         verify(examServices).updateExamName(EXAM_ID, "newName123");
     }
 
@@ -266,14 +267,14 @@ class ExamControllerTest {
 
     @Test
     void updateQuestionShouldExtractUidAndForwardToService() throws Exception {
-        when(examServices.updateQuestion(any(), eq(UID))).thenReturn(new QuestionDto());
+        when(examServices.updateQuestion(eq("q-7"), any(), eq(UID))).thenReturn(new QuestionDto());
 
         mvc.perform(patch("/api/questions/q-7")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"typeName\":\"AudioQuestion\"}")
                         .requestAttr("uid", UID))
                 .andExpect(status().isOk());
-        verify(examServices).updateQuestion(any(), eq(UID));
+        verify(examServices).updateQuestion(eq("q-7"), any(), eq(UID));
     }
 
     @Test

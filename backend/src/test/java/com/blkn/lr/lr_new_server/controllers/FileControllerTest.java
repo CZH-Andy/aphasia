@@ -3,6 +3,7 @@ package com.blkn.lr.lr_new_server.controllers;
 import com.blkn.lr.lr_new_server.config.AppSetting;
 import com.blkn.lr.lr_new_server.dao.impl.FileDao;
 import com.blkn.lr.lr_new_server.exception.GlobalExceptionHandler;
+import com.blkn.lr.lr_new_server.exception.FileTypeException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.env.Environment;
@@ -16,6 +17,7 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -78,11 +80,13 @@ class FileControllerTest {
     }
 
     @Test
-    void uploadImagesShouldThrowForNonImageNonAudioContentType() throws Exception {
-        // 走 image endpoint 但 content-type 是 text/plain —— 应命中 else 分支抛 BusinessErrorException
+    void uploadImagesShouldReturn400WhenFileDaoRejectsContent() throws Exception {
         MockMultipartFile mf = new MockMultipartFile("file", "x.txt", "text/plain", new byte[]{1, 2});
+        when(fileDao.createImageFile(org.mockito.ArgumentMatchers.any(), eq(UID)))
+                .thenThrow(new FileTypeException("文件内容不是受支持的图片"));
+
         mvc.perform(multipart("/api/image").file(mf).requestAttr("uid", UID))
-                .andExpect(status().is4xxClientError());
+                .andExpect(status().isBadRequest());
     }
 
     // ============================================================
@@ -103,16 +107,15 @@ class FileControllerTest {
     }
 
     @Test
-    void uploadImagesShouldAlsoAcceptAudioContentType() throws Exception {
-        // image endpoint + audio content-type —— Controller 不卡 endpoint，按 content-type 分流。
-        // 这条锁住"路由器是 content-type 驱动而非 URL 驱动"的当前行为。
-        when(fileDao.createAudioFile(org.mockito.ArgumentMatchers.any(), eq(UID)))
-                .thenReturn(new File("/tmp/audio-via-image.wav"));
+    void uploadImagesShouldNeverRouteToAudioStorage() throws Exception {
+        when(fileDao.createImageFile(org.mockito.ArgumentMatchers.any(), eq(UID)))
+                .thenThrow(new FileTypeException("文件内容不是受支持的图片"));
 
         MockMultipartFile mf = new MockMultipartFile("file", "audio-via-image.wav", "audio/wav", new byte[]{1});
         mvc.perform(multipart("/api/image").file(mf).requestAttr("uid", UID))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.url").value("http://localhost:8080/audio/" + UID + "/audio-via-image.wav"));
+                .andExpect(status().isBadRequest());
+
+        verify(fileDao, never()).createAudioFile(org.mockito.ArgumentMatchers.any(), eq(UID));
     }
 
     // ============================================================

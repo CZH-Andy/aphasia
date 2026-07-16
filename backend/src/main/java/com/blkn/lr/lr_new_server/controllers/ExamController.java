@@ -65,25 +65,31 @@ public class ExamController {
 
 
     @PatchMapping("/exams/{examId}/name/{newName}")
-    Map<String, String> updateExamName(@PathVariable String examId, @PathVariable String newName) {
+    Map<String, String> updateExamName(@PathVariable String examId, @PathVariable String newName,
+                                      HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.updateExamName(examId, newName);
         return Map.of("msg", "ok");
     }
 
     @PatchMapping("/exams/{examId}/desc/{desc}")
-    Map<String, String> updateExamDesc(@PathVariable String examId, @PathVariable String desc) {
+    Map<String, String> updateExamDesc(@PathVariable String examId, @PathVariable String desc,
+                                      HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.updateExamDesc(examId, desc);
         return Map.of("msg", "ok");
     }
 
     @PatchMapping("/exams/{examId}")
-    Map<String, String> publishExam(@PathVariable String examId) {
+    Map<String, String> publishExam(@PathVariable String examId, HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.publishExam(examId);
         return Map.of("msg", "ok");
     }
 
     @DeleteMapping("/exams/{examId}")
-    Map<String, String> deleteExam(@PathVariable String examId) {
+    Map<String, String> deleteExam(@PathVariable String examId, HttpServletRequest request) {
+        requireExamOwner(request, examId);
         if (examServices.deleteExam(examId) <= 0) {
             throw new BusinessErrorException("删除id为" + examId + "的套题失败");
         }
@@ -91,63 +97,97 @@ public class ExamController {
     }
 
     @PostMapping("/exams/{examId}/category")
-    QuestionCategoryDto addCategory(@Valid @RequestBody QuestionCategoryDto newCategory, @PathVariable("examId") String examId) {
+    QuestionCategoryDto addCategory(@Valid @RequestBody QuestionCategoryDto newCategory,
+                                    @PathVariable("examId") String examId,
+                                    HttpServletRequest request) {
+        requireExamOwner(request, examId);
         return examServices.addCategory(newCategory, examId);
     }
 
     @PatchMapping("/exams/{examId}/categories/{categoryIndex}")
-    Map<String, String> updateCategory(@Valid @RequestBody QuestionCategoryDto newCategory, @PathVariable int categoryIndex, @PathVariable("examId") String examId) {
+    Map<String, String> updateCategory(@Valid @RequestBody QuestionCategoryDto newCategory,
+                                      @PathVariable int categoryIndex,
+                                      @PathVariable("examId") String examId,
+                                      HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.updateCategory(examId, categoryIndex, newCategory);
         return Map.of("msg", "ok");
     }
 
     @DeleteMapping("/exams/{examId}/categories/{categoryIndex}")
-    public Map<String, String> deleteCategory(@PathVariable String examId, @PathVariable int categoryIndex) {
+    public Map<String, String> deleteCategory(@PathVariable String examId, @PathVariable int categoryIndex,
+                                              HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.deleteCategory(examId, categoryIndex);
 
         return Map.of("msg", "ok");
     }
 
     @PatchMapping("/exams/{examId}/categories/{categoryIndex}/up")
-    public Map<String, String> moveCategoryUp(@PathVariable String examId, @PathVariable int categoryIndex) {
+    public Map<String, String> moveCategoryUp(@PathVariable String examId, @PathVariable int categoryIndex,
+                                              HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.moveCategoryUp(examId, categoryIndex);
 
         return Map.of("msg", "ok");
     }
 
     @PatchMapping("/exams/{examId}/categories/{categoryIndex}/down")
-    public Map<String, String> moveCategoryDown(@PathVariable String examId, @PathVariable int categoryIndex) {
+    public Map<String, String> moveCategoryDown(@PathVariable String examId, @PathVariable int categoryIndex,
+                                                HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.moveCategoryDown(examId, categoryIndex);
         return Map.of("msg", "ok");
     }
 
     @PostMapping("/exams/{examId}/categories/{categoryIndex}/subCategory")
-    public Map<String, String> addSubCategoryIntoExam(@PathVariable String examId, @PathVariable int categoryIndex, @Valid @RequestBody QuestionSubCategoryDto dto) {
+    public Map<String, String> addSubCategoryIntoExam(@PathVariable String examId,
+                                                      @PathVariable int categoryIndex,
+                                                      @Valid @RequestBody QuestionSubCategoryDto dto,
+                                                      HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.addSubCategoryIntoExam(examId, categoryIndex, dto);
         return Map.of("msg", "ok");
     }
 
     @PatchMapping("/exams/{examId}/categories/{categoryIndex}/subCategories/{subCategoryIndex}")
-    Map<String, String> updateSubCategory(@Valid @RequestBody QuestionSubCategoryDto newCategory, @PathVariable int categoryIndex, @PathVariable("examId") String examId, @PathVariable int subCategoryIndex) {
+    Map<String, String> updateSubCategory(@Valid @RequestBody QuestionSubCategoryDto newCategory,
+                                          @PathVariable int categoryIndex,
+                                          @PathVariable("examId") String examId,
+                                          @PathVariable int subCategoryIndex,
+                                          HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.updateSubCategory(examId, categoryIndex, subCategoryIndex, newCategory);
         return Map.of("msg", "ok");
     }
 
     @DeleteMapping("/exams/{examId}/categories/{categoryIndex}/subCategories/{subCategoryIndex}")
-    public Map<String, String> deleteSubCategoryFromExam(@PathVariable String examId, @PathVariable int categoryIndex, @PathVariable int subCategoryIndex) {
+    public Map<String, String> deleteSubCategoryFromExam(@PathVariable String examId,
+                                                         @PathVariable int categoryIndex,
+                                                         @PathVariable int subCategoryIndex,
+                                                         HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.deleteSubCategoryFromExam(examId, categoryIndex, subCategoryIndex);
         return Map.of("msg", "ok");
     }
 
     @PatchMapping ("/exams/{examId}/categories/{categoryIndex}/subCategories/{subCategoryIndex}/up")
-    public Map<String, String> moveSubCategoryUp(@PathVariable String examId, @PathVariable int categoryIndex, @PathVariable int subCategoryIndex) {
+    public Map<String, String> moveSubCategoryUp(@PathVariable String examId,
+                                                 @PathVariable int categoryIndex,
+                                                 @PathVariable int subCategoryIndex,
+                                                 HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.moveSubCategoryUp(examId, categoryIndex, subCategoryIndex);
         return Map.of("msg", "ok");
     }
 
 
     @PatchMapping("/exams/{examId}/categories/{categoryIndex}/subCategories/{subCategoryIndex}/down")
-    public Map<String, String> moveSubCategoryDown(@PathVariable String examId, @PathVariable int categoryIndex, @PathVariable int subCategoryIndex) {
+    public Map<String, String> moveSubCategoryDown(@PathVariable String examId,
+                                                   @PathVariable int categoryIndex,
+                                                   @PathVariable int subCategoryIndex,
+                                                   HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.moveSubCategoryDown(examId, categoryIndex, subCategoryIndex);
         return Map.of("msg", "ok");
     }
@@ -160,6 +200,7 @@ public class ExamController {
                             HttpServletRequest request) {
         String uid = (String) request.getAttribute("uid");
 
+        examServices.requireExamOwner(examId, uid);
         return examServices.addQuestion(uid, examId, cateIndex, subCateIndex, newQuestion);
     }
 
@@ -169,96 +210,170 @@ public class ExamController {
                             HttpServletRequest request) {
         String uid = (String) request.getAttribute("uid");
 
-        return examServices.updateQuestion(newQuestion, uid);
+        return examServices.updateQuestion(questionId, newQuestion, uid);
     }
 
     @DeleteMapping("/exams/{examId}/categories/{categoryIndex}/subCategories/{subCategoryIndex}/questions/{questionIndex}")
-    public Map<String, String> deleteQuestion(@PathVariable String examId, @PathVariable int categoryIndex, @PathVariable int subCategoryIndex, @PathVariable int questionIndex) {
+    public Map<String, String> deleteQuestion(@PathVariable String examId,
+                                              @PathVariable int categoryIndex,
+                                              @PathVariable int subCategoryIndex,
+                                              @PathVariable int questionIndex,
+                                              HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.deleteQuestion(examId, categoryIndex, subCategoryIndex, questionIndex);
         return Map.of("msg", "ok");
     }
 
     @PatchMapping("/exams/{examId}/categories/{categoryIndex}/subCategories/{subCategoryIndex}/questions/{questionIndex}/up")
-    public Map<String, String> moveQuestionUp(@PathVariable String examId, @PathVariable int categoryIndex, @PathVariable int subCategoryIndex, @PathVariable int questionIndex) {
+    public Map<String, String> moveQuestionUp(@PathVariable String examId,
+                                              @PathVariable int categoryIndex,
+                                              @PathVariable int subCategoryIndex,
+                                              @PathVariable int questionIndex,
+                                              HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.moveQuestionUp(examId, categoryIndex, subCategoryIndex, questionIndex);
         return Map.of("msg", "ok");
     }
 
     @PatchMapping("/exams/{examId}/categories/{categoryIndex}/subCategories/{subCategoryIndex}/questions/{questionIndex}/down")
-    public Map<String, String> moveQuestionDown(@PathVariable String examId, @PathVariable int categoryIndex, @PathVariable int subCategoryIndex, @PathVariable int questionIndex) {
+    public Map<String, String> moveQuestionDown(@PathVariable String examId,
+                                                @PathVariable int categoryIndex,
+                                                @PathVariable int subCategoryIndex,
+                                                @PathVariable int questionIndex,
+                                                HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.moveQuestionDown(examId, categoryIndex, subCategoryIndex, questionIndex);
         return Map.of("msg", "ok");
     }
 
     @PostMapping("/exams/{examId}/diagnosisRule")
-    public Map<String, String> addDiagnoseRule(@PathVariable String examId, @Valid @RequestBody DiagnosisRule rule) {
+    public Map<String, String> addDiagnoseRule(@PathVariable String examId,
+                                               @Valid @RequestBody DiagnosisRule rule,
+                                               HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.addDiagnoseRule(examId, rule);
         return Map.of("msg", "ok");
     }
 
     @PatchMapping("/exams/{examId}/diagnosisRules/{ruleIndex}")
-    public Map<String, String> updateDiagnoseRule(@PathVariable String examId, @PathVariable int ruleIndex, @Valid @RequestBody DiagnosisRule rule) {
+    public Map<String, String> updateDiagnoseRule(@PathVariable String examId,
+                                                  @PathVariable int ruleIndex,
+                                                  @Valid @RequestBody DiagnosisRule rule,
+                                                  HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.updateDiagnoseRule(examId, ruleIndex, rule);
         return Map.of("msg", "ok");
     }
 
     @DeleteMapping("/exams/{examId}/diagnosisRules/{ruleIndex}")
-    public Map<String, String> deleteDiagnoseRule(@PathVariable String examId, @PathVariable int ruleIndex) {
+    public Map<String, String> deleteDiagnoseRule(@PathVariable String examId,
+                                                  @PathVariable int ruleIndex,
+                                                  HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.deleteDiagnoseRule(examId, ruleIndex);
         return Map.of("msg", "ok");
     }
 
     @PostMapping("/exams/{examId}/categories/{categoryIndex}/subCategories/{subCategoryIndex}/terminateRule")
-    public Map<String, String> addTerminateRule(@PathVariable String examId, @PathVariable int categoryIndex, @PathVariable int subCategoryIndex, @Valid @RequestBody TerminateRule rule) {
+    public Map<String, String> addTerminateRule(@PathVariable String examId,
+                                                @PathVariable int categoryIndex,
+                                                @PathVariable int subCategoryIndex,
+                                                @Valid @RequestBody TerminateRule rule,
+                                                HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.addTerminateRule(examId, categoryIndex, subCategoryIndex, rule);
         return Map.of("msg", "ok");
     }
 
     @PatchMapping("/exams/{examId}/categories/{categoryIndex}/subCategories/{subCategoryIndex}/terminateRules/{ruleIndex}")
-    public Map<String, String> updateTerminateRule(@PathVariable String examId, @PathVariable int categoryIndex, @PathVariable int subCategoryIndex, @PathVariable int ruleIndex, @Valid @RequestBody TerminateRule rule) {
+    public Map<String, String> updateTerminateRule(@PathVariable String examId,
+                                                   @PathVariable int categoryIndex,
+                                                   @PathVariable int subCategoryIndex,
+                                                   @PathVariable int ruleIndex,
+                                                   @Valid @RequestBody TerminateRule rule,
+                                                   HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.updateTerminateRule(examId, categoryIndex, subCategoryIndex, ruleIndex, rule);
         return Map.of("msg", "ok");
     }
 
     @DeleteMapping("/exams/{examId}/categories/{categoryIndex}/subCategories/{subCategoryIndex}/terminateRules/{ruleIndex}")
-    public Map<String, String> deleteTerminateRule(@PathVariable String examId, @PathVariable int categoryIndex, @PathVariable int subCategoryIndex, @PathVariable int ruleIndex) {
+    public Map<String, String> deleteTerminateRule(@PathVariable String examId,
+                                                   @PathVariable int categoryIndex,
+                                                   @PathVariable int subCategoryIndex,
+                                                   @PathVariable int ruleIndex,
+                                                   HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.deleteTerminateRule(examId, categoryIndex, subCategoryIndex, ruleIndex);
         return Map.of("msg", "ok");
     }
 
     @PostMapping("/exams/{examId}/categories/{categoryIndex}/evalRule")
-    public Map<String, String> addCategoryEvalRule(@PathVariable String examId, @PathVariable int categoryIndex, @Valid @RequestBody ExamCategoryEvalRule rule) {
+    public Map<String, String> addCategoryEvalRule(@PathVariable String examId,
+                                                   @PathVariable int categoryIndex,
+                                                   @Valid @RequestBody ExamCategoryEvalRule rule,
+                                                   HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.addCategoryEvalRule(examId, categoryIndex, rule);
         return Map.of("msg", "ok");
     }
 
     @PatchMapping("/exams/{examId}/categories/{categoryIndex}/evalRules/{ruleIndex}")
-    public Map<String, String> updateCategoryEvalRule(@PathVariable String examId, @PathVariable int categoryIndex, @PathVariable int ruleIndex, @Valid @RequestBody ExamCategoryEvalRule rule) {
+    public Map<String, String> updateCategoryEvalRule(@PathVariable String examId,
+                                                      @PathVariable int categoryIndex,
+                                                      @PathVariable int ruleIndex,
+                                                      @Valid @RequestBody ExamCategoryEvalRule rule,
+                                                      HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.updateCategoryEvalRule(examId, categoryIndex, ruleIndex, rule);
         return Map.of("msg", "ok");
     }
 
     @DeleteMapping("/exams/{examId}/categories/{categoryIndex}/evalRules/{ruleIndex}")
-    public Map<String, String> deleteCategoryEvalRule(@PathVariable String examId, @PathVariable int categoryIndex, @PathVariable int ruleIndex) {
+    public Map<String, String> deleteCategoryEvalRule(@PathVariable String examId,
+                                                      @PathVariable int categoryIndex,
+                                                      @PathVariable int ruleIndex,
+                                                      HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.deleteCategoryEvalRule(examId, categoryIndex, ruleIndex);
         return Map.of("msg", "ok");
     }
 
     @PostMapping("/exams/{examId}/categories/{categoryIndex}/subCategories/{subCategoryIndex}/evalRule")
-    public Map<String, String> addSubCategoryEvalRule(@PathVariable String examId, @PathVariable int categoryIndex, @PathVariable int subCategoryIndex, @Valid @RequestBody ExamSubCategoryEvalRule rule) {
+    public Map<String, String> addSubCategoryEvalRule(@PathVariable String examId,
+                                                      @PathVariable int categoryIndex,
+                                                      @PathVariable int subCategoryIndex,
+                                                      @Valid @RequestBody ExamSubCategoryEvalRule rule,
+                                                      HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.addSubCategoryEvalRule(examId, categoryIndex, subCategoryIndex, rule);
         return Map.of("msg", "ok");
     }
 
     @PatchMapping("/exams/{examId}/categories/{categoryIndex}/subCategories/{subCategoryIndex}/evalRules/{ruleIndex}")
-    public Map<String, String> updateSubCategoryEvalRule(@PathVariable String examId, @PathVariable int categoryIndex, @PathVariable int subCategoryIndex, @PathVariable int ruleIndex, @Valid @RequestBody ExamSubCategoryEvalRule rule) {
+    public Map<String, String> updateSubCategoryEvalRule(@PathVariable String examId,
+                                                         @PathVariable int categoryIndex,
+                                                         @PathVariable int subCategoryIndex,
+                                                         @PathVariable int ruleIndex,
+                                                         @Valid @RequestBody ExamSubCategoryEvalRule rule,
+                                                         HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.updateSubCategoryEvalRule(examId, categoryIndex, subCategoryIndex, ruleIndex, rule);
         return Map.of("msg", "ok");
     }
 
     @DeleteMapping("/exams/{examId}/categories/{categoryIndex}/subCategories/{subCategoryIndex}/evalRules/{ruleIndex}")
-    public Map<String, String> deleteSubCategoryEvalRule(@PathVariable String examId, @PathVariable int categoryIndex, @PathVariable int subCategoryIndex, @PathVariable int ruleIndex) {
+    public Map<String, String> deleteSubCategoryEvalRule(@PathVariable String examId,
+                                                         @PathVariable int categoryIndex,
+                                                         @PathVariable int subCategoryIndex,
+                                                         @PathVariable int ruleIndex,
+                                                         HttpServletRequest request) {
+        requireExamOwner(request, examId);
         examServices.deleteSubCategoryEvalRule(examId, categoryIndex, subCategoryIndex, ruleIndex);
         return Map.of("msg", "ok");
+    }
+
+    private void requireExamOwner(HttpServletRequest request, String examId) {
+        examServices.requireExamOwner(examId, (String) request.getAttribute("uid"));
     }
 }

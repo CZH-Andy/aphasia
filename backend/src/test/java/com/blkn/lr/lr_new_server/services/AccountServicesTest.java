@@ -37,10 +37,11 @@ class AccountServicesTest {
     private AccountServices accountServices;
 
     @Test
-    void registerShouldUseBcryptPassword() {
+    void registerShouldUseBcryptPasswordAndForcePatientRole() {
         UserDto request = new UserDto();
         request.setIdentity("doctor001");
         request.setPassword("plain-password");
+        // 即使绕过 DTO 校验直接调用 Service，也不能创建医生。
         request.setRole(2);
 
         when(userDao.register(any(User.class))).thenAnswer(invocation -> {
@@ -61,6 +62,8 @@ class AccountServicesTest {
         assertNotEquals("plain-password", savedUser.getPassword());
         assertTrue(savedUser.getPassword().startsWith("$2"),
                 "密码必须存为 BCrypt 哈希（以 $2 开头）");
+        assertEquals(1, savedUser.getRole());
+        assertEquals(1, response.getRole());
     }
 
     @Test

@@ -37,7 +37,7 @@ class GlobalExceptionHandlerTest {
 
         mockMvc.perform(post("/api/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"identity\":\"doctor-1\",\"password\":\"pwd123\",\"role\":2}"))
+                        .content("{\"identity\":\"patient-1\",\"password\":\"pwd123\",\"role\":1}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400))
                 .andExpect(jsonPath("$.message").value("用户已存在"));

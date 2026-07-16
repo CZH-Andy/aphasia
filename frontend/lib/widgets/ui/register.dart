@@ -1,11 +1,8 @@
 import 'package:aphasia_recovery/mixin/widgets_mixin.dart';
 import 'package:aphasia_recovery/states/user_identity.dart';
-import 'package:aphasia_recovery/utils/common_widget_function.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../states/question_set_states.dart';
-import 'doctor/doctor_exams_management.dart';
 import 'patient/home.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -24,11 +21,12 @@ class _RegisterPageState extends State<RegisterPage>
     with StateWithTextFields, TextFieldCommonValidators {
   // 添加样式常量
   static const _inputBorderRadius = 8.0;
-  static const _buttonPadding = EdgeInsets.symmetric(vertical: 12, horizontal: 24);
+  static const _buttonPadding =
+      EdgeInsets.symmetric(vertical: 12, horizontal: 24);
   static const _cardElevation = 4.0;
   final Map<String, dynamic> registerInfo = {};
 
-  bool isDoctor = false;
+  bool _isLoading = false;
 
   @override
   void initFieldSettings() {
@@ -40,11 +38,10 @@ class _RegisterPageState extends State<RegisterPage>
 
         if (errMsg == null) {
           String val = value!;
-          String emailPattern =
-              r'^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$';
+          String emailPattern = r'^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$';
           RegExp regExp = RegExp(emailPattern);
 
-          RegExp phoneRegex = RegExp(r'\d{11}');
+          RegExp phoneRegex = RegExp(r'^1[3-9]\d{9}$');
           if (!regExp.hasMatch(val) && !phoneRegex.hasMatch(val)) {
             errMsg = "请输入邮箱或手机号";
           }
@@ -53,8 +50,8 @@ class _RegisterPageState extends State<RegisterPage>
         return errMsg;
       },
       reset: () => fieldsSetting['identity']!.ctrl.text = "",
-      applyToModel: () => registerInfo['identity'] =
-          fieldsSetting['identity']!.ctrl.text,
+      applyToModel: () =>
+          registerInfo['identity'] = fieldsSetting['identity']!.ctrl.text,
     );
 
     fieldsSetting['password'] = FieldSetting(
@@ -64,7 +61,7 @@ class _RegisterPageState extends State<RegisterPage>
         value = value ?? "";
         String? errMsg = notEmptyValidator("密码")(value);
 
-        if (errMsg == null && (value.length > 15 || value.length <7)) {
+        if (errMsg == null && (value.length > 15 || value.length < 7)) {
           errMsg = "请设置长度为7-15的密码，当前长度${value.length}";
         }
 
@@ -79,7 +76,7 @@ class _RegisterPageState extends State<RegisterPage>
       key: GlobalKey<FormFieldState>(debugLabel: "registerPhoneOrEmail"),
       ctrl: TextEditingController(),
       validator: (value) {
-        String? errMsg = notEmptyValidator("手机/邮箱")(value);
+        String? errMsg = notEmptyValidator("确认密码")(value);
 
         if (errMsg == null &&
             fieldsSetting['secondPassword']?.ctrl.text !=
@@ -106,147 +103,6 @@ class _RegisterPageState extends State<RegisterPage>
   Widget build(BuildContext context) {
     CommonStyles? commonStyles = widget.commonStyles;
 
-    // return Scaffold(
-    //   appBar: AppBar(title: Text("注册新用户", style: commonStyles?.bodyStyle)),
-    //   body: SafeArea(
-    //     child: Container(
-    //       color: Theme.of(context).colorScheme.primaryContainer,
-    //       child: Center(
-    //         child: Padding(
-    //           padding: const EdgeInsets.all(32.0),
-    //           child: Container(
-    //             constraints: const BoxConstraints(
-    //               minWidth: 600,
-    //               maxWidth: 1200,
-    //               minHeight: 300,
-    //             ),
-    //             child: wrappedByCard(
-    //               elevation: commonStyles?.widgetsElevation,
-    //               child: SingleChildScrollView(
-    //                 child: Form(
-    //                     child: Column(
-    //                   mainAxisSize: MainAxisSize.min,
-    //                   children: [
-    //                     Row(
-    //                       children: [
-    //                         Text(
-    //                           "注册新用户",
-    //                           style: commonStyles?.titleStyle,
-    //                         ),
-    //                       ],
-    //                     ),
-    //                     const Divider(
-    //                       height: 32,
-    //                     ),
-    //                     Row(
-    //                       children: [
-    //                         Text(
-    //                           "我是医生",
-    //                           style: commonStyles?.bodyStyle,
-    //                         ),
-    //                         Checkbox(
-    //                             value: isDoctor,
-    //                             onChanged: (value) {
-    //                               setState(() {
-    //                                 isDoctor = value ?? false;
-    //                               });
-    //                             }),
-    //                       ],
-    //                     ),
-    //                     const SizedBox(
-    //                       height: 16,
-    //                     ),
-    //                     buildInputFormField(
-    //                         "手机号/邮箱：",
-    //                         fieldsSetting['identity']!.key,
-    //                         fieldsSetting['identity']!.ctrl,
-    //                         fieldsSetting['identity']!.validator,
-    //                         width: 200,
-    //                         commonStyles: commonStyles),
-    //                     const SizedBox(
-    //                       height: 16,
-    //                     ),
-    //                     buildInputFormField(
-    //                         "密码：",
-    //                         fieldsSetting['password']!.key,
-    //                         fieldsSetting['password']!.ctrl,
-    //                         fieldsSetting['password']!.validator,
-    //                         width: 200,
-    //                         commonStyles: commonStyles,
-    //                         obscureText: true,
-    //                         enableSuggestions: false,
-    //                         autocorrect: false),
-    //                     const SizedBox(
-    //                       height: 16,
-    //                     ),
-    //                     buildInputFormField(
-    //                         "再次输入密码：",
-    //                         fieldsSetting['secondPassword']!.key,
-    //                         fieldsSetting['secondPassword']!.ctrl,
-    //                         fieldsSetting['secondPassword']!.validator,
-    //                         width: 200,
-    //                         commonStyles: commonStyles,
-    //                         obscureText: true,
-    //                         enableSuggestions: false,
-    //                         autocorrect: false),
-    //                     const Divider(
-    //                       height: 32,
-    //                     ),
-    //                     Padding(
-    //                       padding: const EdgeInsets.only(bottom: 8.0),
-    //                       child: Row(
-    //                         children: [
-    //                           ElevatedButton(
-    //                             onPressed: () async {
-    //                               if (applyFieldsChangesToModel()) {
-    //                                 registerInfo['role'] = isDoctor ? "2" : "1" ;
-
-    //                                 final userIdentity = await UserIdentity.register(registerInfo).catchError((err) {
-    //                                   requestResultErrorHandler(context, error: err);
-    //                                   return err;
-    //                                 });
-
-    //                                 if (!context.mounted) {
-    //                                   return;
-    //                                 }
-
-    //                                 if (userIdentity == null) {
-    //                                   toast(context, msg: "该用户已注册，请返回登录页面登录", btnText: "确认");
-    //                                   return;
-    //                                 }
-
-    //                                 context.read<SingleModelState<UserIdentity>>().model = userIdentity;
-
-    //                                 Navigator.pushReplacement(context,
-    //                                     MaterialPageRoute(
-    //                                         builder: (context) => ChangeNotifierProvider<UserIdentity>.value(
-    //                                           value: userIdentity,
-    //                                           child: userIdentity.isDoctor
-    //                                               ? DoctorExamsManagementPage(commonStyles: commonStyles)
-    //                                               : HomePage(commonStyles: commonStyles,),
-    //                                         )));
-    //                               }
-    //                             },
-    //                             style: ElevatedButton.styleFrom(backgroundColor: commonStyles?.primaryColor),
-    //                             child: Text(
-    //                               "注册",
-    //                               style: commonStyles?.bodyStyle?.copyWith(
-    //                                   color: commonStyles.onPrimaryColor),
-    //                             ),
-    //                           ),
-    //                         ],
-    //                       ),
-    //                     )
-    //                   ],
-    //                 )),
-    //               ),
-    //             ),
-    //           ),
-    //         ),
-    //       ),
-    //     ),
-    //   ),
-    // );
     return Scaffold(
       appBar: AppBar(
         title: Text("用户注册", style: commonStyles?.titleStyle),
@@ -263,7 +119,7 @@ class _RegisterPageState extends State<RegisterPage>
                 child: Card(
                   elevation: _cardElevation,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12)),
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: SingleChildScrollView(
@@ -272,7 +128,10 @@ class _RegisterPageState extends State<RegisterPage>
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            _buildRoleToggle(commonStyles),
+                            Text(
+                              "公开注册仅创建患者账号。医疗人员账号请联系系统管理员开通。",
+                              style: commonStyles?.bodyStyle,
+                            ),
                             const SizedBox(height: 24),
                             _buildInputField(
                               label: '手机号/邮箱',
@@ -290,7 +149,8 @@ class _RegisterPageState extends State<RegisterPage>
                             _buildPasswordField(
                               label: '确认密码',
                               controller: fieldsSetting['secondPassword']!.ctrl,
-                              validator: fieldsSetting['secondPassword']!.validator,
+                              validator:
+                                  fieldsSetting['secondPassword']!.validator,
                             ),
                             const SizedBox(height: 32),
                             _buildRegisterButton(commonStyles),
@@ -305,31 +165,6 @@ class _RegisterPageState extends State<RegisterPage>
           ),
         ),
       ),
-    );
-  }
-
-  // 新增角色切换组件
-  Widget _buildRoleToggle(CommonStyles? commonStyles) {
-    return Row(
-      children: [
-        Expanded(
-          child: ChoiceChip(
-            label: Text("普通用户", style: commonStyles?.bodyStyle),
-            selected: !isDoctor,
-            onSelected: (val) => setState(() => isDoctor = !val),
-            selectedColor: commonStyles?.primaryColor,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: ChoiceChip(
-            label: Text("医疗人员", style: commonStyles?.bodyStyle),
-            selected: isDoctor,
-            onSelected: (val) => setState(() => isDoctor = val),
-            selectedColor: commonStyles?.primaryColor,
-          ),
-        ),
-      ],
     );
   }
 
@@ -378,28 +213,31 @@ class _RegisterPageState extends State<RegisterPage>
 
   // 注册按钮组件
   Widget _buildRegisterButton(CommonStyles? commonStyles) {
-    bool isLoading = false;
-    
     return ElevatedButton.icon(
-      icon: isLoading ? const SizedBox(
+      icon: _isLoading
+          ? const SizedBox(
               width: 20,
               height: 20,
               child: CircularProgressIndicator(strokeWidth: 2))
           : const Icon(Icons.app_registration),
-      label: Text(isLoading ? "注册中..." : "立即注册"),
+      label: Text(_isLoading ? "注册中..." : "立即注册"),
       style: ElevatedButton.styleFrom(
         padding: _buttonPadding,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(_inputBorderRadius)
-        ),
+            borderRadius: BorderRadius.circular(_inputBorderRadius)),
       ),
-      onPressed: () async {
-        if (isLoading) return;
-        
-        setState(() => isLoading = true);
-        await _handleRegister(widget.commonStyles);
-        if (mounted) setState(() => isLoading = false);
-      },
+      onPressed: _isLoading
+          ? null
+          : () async {
+              setState(() => _isLoading = true);
+              try {
+                await _handleRegister(widget.commonStyles);
+              } finally {
+                if (mounted) {
+                  setState(() => _isLoading = false);
+                }
+              }
+            },
     );
   }
 
@@ -410,7 +248,7 @@ class _RegisterPageState extends State<RegisterPage>
     final payload = <String, dynamic>{
       'identity': registerInfo['identity'],
       'password': registerInfo['password'],
-      'role': isDoctor ? 2 : 1,
+      'role': 1,
     };
 
     try {
@@ -427,7 +265,8 @@ class _RegisterPageState extends State<RegisterPage>
   }
 
   // 新增错误提示方法
-  void showErrorToast(BuildContext context, String msg, CommonStyles? commonStyles) {
+  void showErrorToast(
+      BuildContext context, String msg, CommonStyles? commonStyles) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg, style: commonStyles?.bodyStyle),
@@ -444,9 +283,7 @@ class _RegisterPageState extends State<RegisterPage>
       MaterialPageRoute(
         builder: (context) => ChangeNotifierProvider.value(
           value: identity,
-          child: identity.isDoctor
-              ? DoctorExamsManagementPage(commonStyles: commonStyles)
-              : HomePage(commonStyles: commonStyles),
+          child: HomePage(commonStyles: commonStyles),
         ),
       ),
     );
