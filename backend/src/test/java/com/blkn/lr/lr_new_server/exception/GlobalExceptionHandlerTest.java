@@ -5,11 +5,13 @@ import com.blkn.lr.lr_new_server.services.AccountServices;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -53,5 +55,15 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.message").exists());
 
         verifyNoInteractions(accountServices);
+    }
+
+    @Test
+    void shouldReturnConflictResponseForConcurrentResultUpdate() {
+        var response = new GlobalExceptionHandler()
+                .handleConflict(new ConflictException("记录已更新"));
+
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertEquals(409, response.getBody().getCode());
+        assertEquals("记录已更新", response.getBody().getMessage());
     }
 }

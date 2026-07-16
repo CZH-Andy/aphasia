@@ -11,6 +11,8 @@ Docker Compose 使用两个持久卷：
 
 API 密钥和 JWT 密钥位于本地 `.env`，不得提交到 Git。`seed/mongodump` 只应保存可公开分发的演示数据，禁止混入真实患者记录。
 
+新作答记录会在 MongoDB 中保存原始识别文本、选择项、动作、点击坐标和题目快照。它们与录音、图片一样属于敏感医疗相关数据，备份、校验、复制和销毁都必须遵循相同的访问控制。
+
 ## 建议备份流程
 
 先创建一个仅管理员可读的归档目录：
@@ -73,6 +75,8 @@ docker compose exec -T backend \
 docker compose start frontend
 docker compose ps
 ```
+
+恢复后还应抽查 `examResult` 中的 `examId`、`revision`、`categoryResults.questionResults.sourceQuestionSnapshot` 和各题型原始载荷字段，确认历史记录不是只有汇总分数。
 
 ## 归档规则
 

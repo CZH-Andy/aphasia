@@ -1,15 +1,11 @@
+import 'dart:convert';
 import 'dart:io' show Platform;
 
 import 'package:aphasia_recovery/enum/system.dart';
 import 'package:aphasia_recovery/exceptions/http_exceptions.dart';
 import 'package:aphasia_recovery/exceptions/local_exceptions.dart';
 import 'package:aphasia_recovery/mixin/widgets_mixin.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-
-import 'io/file.dart';
 
 void toast(BuildContext context, {required String msg, required String btnText, void Function ()? onPressed, CommonStyles? commonStyles}) {
   onPressed ??= (){};
@@ -387,6 +383,26 @@ void requestResultErrorHandler(BuildContext context, {dynamic error}) {
       break;
     case InCompleteExamException:
       toast(context, msg: (error as InCompleteExamException).message, btnText: "确认");
+      break;
+    case HttpRequestException:
+      final httpError = error as HttpRequestException;
+      if (httpError.statusCode == 409) {
+        String message = "作答记录已更新，请返回历史记录确认状态后重试";
+        try {
+          final body = jsonDecode(httpError.message ?? "");
+          if (body is Map<String, dynamic> &&
+              body["message"] is String &&
+              (body["message"] as String).isNotEmpty) {
+            message = body["message"] as String;
+          }
+        } on FormatException {
+          // 非 JSON 错误体使用上面的安全提示。
+        }
+        toast(context, msg: message, btnText: "确认");
+        break;
+      }
+      toast(context, msg: '请求失败，请重试或联系开发者', btnText: '确认');
+      throw error;
     default:
       toast(context, msg: '出现错误，请重试或联系开发者', btnText: '确认', onPressed: () { });
       throw error;

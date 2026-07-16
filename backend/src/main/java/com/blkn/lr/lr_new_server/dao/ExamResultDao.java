@@ -8,7 +8,11 @@ import java.util.List;
  * 作答结果数据访问抽象。Controller / Service 应依赖本接口而非具体实现。
  */
 public interface ExamResultDao {
-    ExamResult save(ExamResult model);
+    ExamResult insert(ExamResult model);
+
+    ExamResult findByIdWithOwnerId(String ownerId, String resultId);
+
+    ExamResult updateOwned(ExamResult model, long expectedRevision);
 
     List<ExamResult> findByOwnerId(String ownerId, boolean isRecovery);
 

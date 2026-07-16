@@ -2,10 +2,13 @@ package com.blkn.lr.lr_new_server.mapper;
 
 import com.blkn.lr.lr_new_server.dao.QuestionDao;
 import com.blkn.lr.lr_new_server.dto.models.result.ExamResultDto;
+import com.blkn.lr.lr_new_server.dto.models.question.QuestionDto;
+import com.blkn.lr.lr_new_server.dto.models.result.QuestionResultDto;
 import com.blkn.lr.lr_new_server.models.question.Question;
 import com.blkn.lr.lr_new_server.models.results.CategoryResult;
 import com.blkn.lr.lr_new_server.models.results.ExamResult;
 import com.blkn.lr.lr_new_server.models.results.QuestionResult;
+import com.blkn.lr.lr_new_server.models.results.QuestionSnapshot;
 import com.blkn.lr.lr_new_server.models.results.SubCategoryResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -69,6 +72,52 @@ class ExamResultMapperTest {
         assertEquals("原问题已删除", sourceDto.getAlias());
     }
 
+    @Test
+    void toDtoShouldPreferArchivedSnapshotAndPreserveRawAnswer() {
+        ExamResult result = resultWithQuestions(List.of("q-deleted"));
+        QuestionResult stored = result.getCategoryResults().get(0).getSubResults().get(0)
+                .getQuestionResults().get(0);
+        stored.setSourceQuestionSnapshot(new QuestionSnapshot(
+                "q-deleted", "历史题目", "历史题干", null, null, 10,
+                "ChoiceQuestion", null));
+        stored.setChoiceSelected(List.of(1, 2));
+
+        ExamResultDto dto = examResultMapper.toDto(result);
+
+        verify(questionDao).findAllByIds(List.of());
+        QuestionResultDto question = dto.getCategoryResults().get(0).getSubResults().get(0)
+                .getQuestionResults().get(0);
+        assertEquals("历史题目", question.getSourceQuestion().getAlias());
+        assertEquals(List.of(1, 2), question.getChoiceSelected());
+    }
+
+    @Test
+    void toModelShouldPreserveExamIdentityRevisionAndRawPayload() {
+        QuestionDto source = new QuestionDto();
+        source.setId("q1");
+        source.setTypeName("AudioQuestion");
+        QuestionResultDto question = new QuestionResultDto();
+        question.setSourceQuestion(source);
+        question.setTypeName("AudioQuestionResult");
+        question.setAudioContent("患者回答");
+
+        var subDto = new com.blkn.lr.lr_new_server.dto.models.result.SubCategoryResultDto();
+        subDto.setQuestionResults(List.of(question));
+        var categoryDto = new com.blkn.lr.lr_new_server.dto.models.result.CategoryResultDto();
+        categoryDto.setSubResults(List.of(subDto));
+        ExamResultDto dto = new ExamResultDto();
+        dto.setExamId("exam-1");
+        dto.setRevision(7L);
+        dto.setCategoryResults(List.of(categoryDto));
+
+        ExamResult model = examResultMapper.toModel(dto, "patient-1");
+
+        assertEquals("exam-1", model.getExamId());
+        assertEquals(7L, model.getRevision());
+        assertEquals("患者回答", model.getCategoryResults().get(0).getSubResults().get(0)
+                .getQuestionResults().get(0).getAudioContent());
+    }
+
     private Question question(String id, String text) {
         Question q = new Question();
         q.setId(id);
@@ -80,12 +129,14 @@ class ExamResultMapperTest {
     private ExamResult resultWithQuestions(List<String> questionIds) {
         ExamResult result = new ExamResult();
         result.setExamName("测试");
+        result.setExamId("exam-1");
+        result.setRevision(2L);
 
         LinkedList<QuestionResult> qrs = new LinkedList<>();
         for (String id : questionIds) {
             QuestionResult qr = new QuestionResult();
             qr.setSourceQuestion(id);
-            qr.setTypeName("AudioQuestion");
+            qr.setTypeName("AudioQuestionResult");
             qrs.add(qr);
         }
 

@@ -1,6 +1,7 @@
 package com.blkn.lr.lr_new_server.dto.models.result;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -14,6 +15,11 @@ import java.util.List;
 @NoArgsConstructor
 public class ExamResultDto {
     String id;
+
+    @NotBlank(message = "examId不能为空")
+    String examId;
+
+    Long revision;
     String resultText;
     Double finalScore;
     Date startTime;

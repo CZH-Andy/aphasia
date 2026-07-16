@@ -8,6 +8,8 @@ part of 'results.dart';
 
 ExamResult _$ExamResultFromJson(Map<String, dynamic> json) => ExamResult(
       id: json['id'] as String?,
+      examId: json['examId'] as String?,
+      revision: (json['revision'] as num?)?.toInt() ?? 0,
       resultText: json['resultText'] as String?,
       finalScore: (json['finalScore'] as num?)?.toDouble(),
       startTime: json['startTime'] == null
@@ -26,6 +28,8 @@ ExamResult _$ExamResultFromJson(Map<String, dynamic> json) => ExamResult(
 Map<String, dynamic> _$ExamResultToJson(ExamResult instance) =>
     <String, dynamic>{
       'id': instance.id,
+      'examId': instance.examId,
+      'revision': instance.revision,
       'resultText': instance.resultText,
       'finalScore': instance.finalScore,
       'startTime': instance.startTime?.toIso8601String(),
@@ -158,6 +162,7 @@ WritingQuestionResult _$WritingQuestionResultFromJson(
     WritingQuestionResult(
       sourceQuestion:
           Question.fromJson(json['sourceQuestion'] as Map<String, dynamic>),
+      writingContent: json['writingContent'] as String? ?? "",
       answerTime: (json['answerTime'] as num?)?.toInt(),
     )
       ..finalScore = (json['finalScore'] as num?)?.toDouble()
@@ -174,6 +179,7 @@ Map<String, dynamic> _$WritingQuestionResultToJson(
       'isHinted': instance.isHinted,
       'extraResults': instance.extraResults,
       'typeName': instance.typeName,
+      'writingContent': instance.writingContent,
     };
 
 ItemFindingQuestionResult _$ItemFindingQuestionResultFromJson(

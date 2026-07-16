@@ -2,6 +2,7 @@ package com.blkn.lr.lr_new_server.mapper;
 
 import com.blkn.lr.lr_new_server.dto.models.question.QuestionDto;
 import com.blkn.lr.lr_new_server.models.question.Question;
+import com.blkn.lr.lr_new_server.models.results.QuestionSnapshot;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -42,5 +43,36 @@ public class QuestionMapper {
         model.setTypeName(dto.getTypeName());
         model.setEvalRule(dto.getEvalRule());
         return model;
+    }
+
+    public QuestionSnapshot toSnapshot(Question question) {
+        if (question == null) {
+            return null;
+        }
+        return new QuestionSnapshot(
+                question.getId(),
+                question.getAlias(),
+                question.getQuestionText(),
+                question.getAudioUrl(),
+                question.getImageUrl(),
+                question.getOmitImageAfterSeconds(),
+                question.getTypeName(),
+                question.getEvalRule());
+    }
+
+    public QuestionDto snapshotToDto(QuestionSnapshot snapshot) {
+        if (snapshot == null) {
+            return toDto(null);
+        }
+        QuestionDto dto = new QuestionDto();
+        dto.setId(snapshot.getId());
+        dto.setAlias(snapshot.getAlias());
+        dto.setQuestionText(snapshot.getQuestionText());
+        dto.setAudioUrl(snapshot.getAudioUrl());
+        dto.setImageUrl(snapshot.getImageUrl());
+        dto.setOmitImageAfterSeconds(snapshot.getOmitImageAfterSeconds());
+        dto.setTypeName(snapshot.getTypeName());
+        dto.setEvalRule(snapshot.getEvalRule());
+        return dto;
     }
 }

@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../../../mixin/widgets_mixin.dart';
 import '../../../models/question/question.dart';
 import '../../../models/result/results.dart';
-import '../../../models/rules.dart';
 import '../../../utils/io/assets.dart';
 
 class ItemFindingQuestionAnswerArea extends StatefulWidget {
@@ -44,7 +43,6 @@ class _ItemFindingQuestionAnswerAreaState
   @override
   void resetState() {
     currQuestion = widget.question as ItemFindingQuestion;
-    EvalItemFoundQuestion rule = currQuestion.evalRule as EvalItemFoundQuestion;
     result = ItemFindingQuestionResult(sourceQuestion: widget.question);
     answerStart = false;
 
@@ -62,14 +60,14 @@ class _ItemFindingQuestionAnswerAreaState
     imageDisplayCounter!.cancel();
 
     if (timeLimitCountDown != null) {
-      Timer.periodic(Duration(milliseconds: 100), (timer) {
+      Timer.periodic(const Duration(milliseconds: 100), (timer) {
         if (timeLimitCountDown!.isComplete == true && !evaluating && mounted) {
           finishAnswer();
           timer.cancel(); // 倒计时结束后取消定时器
         }
       });
     }
-    
+
     if (currQuestion.audioUrl == null) {
       timeLimitCountDown!.start();
     }
@@ -97,10 +95,9 @@ class _ItemFindingQuestionAnswerAreaState
 
     doCommonFinishStep(result);
     evalQuestion(
-      clickPosition: clickPosition!,
-      result: result,
-      question: currQuestion
-    );
+        clickPosition: result.clickCoordinate,
+        result: result,
+        question: currQuestion);
     // if (!timeLimitCountDown!.isComplete) {
     //   if (clickPosition == null) {
     //     return;
@@ -188,8 +185,10 @@ class _ItemFindingQuestionAnswerAreaState
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                commonStyles?.primaryColor?.withValues(alpha: 0.03) ?? Colors.white,
-                commonStyles?.onPrimaryColor?.withValues(alpha: 0.05) ?? Colors.white,
+                commonStyles?.primaryColor?.withValues(alpha: 0.03) ??
+                    Colors.white,
+                commonStyles?.onPrimaryColor?.withValues(alpha: 0.05) ??
+                    Colors.white,
               ]),
         ),
         child: Padding(
@@ -325,7 +324,7 @@ class _ItemFindingQuestionAnswerAreaState
             commonStyles?.primaryColor?.withValues(alpha: 0.3) ??
                 Colors.blue.withValues(alpha: 0.3),
             commonStyles?.primaryColor ?? Colors.blue,
-          ], stops: [
+          ], stops: const [
             0.5,
             1.0
           ]),

@@ -110,7 +110,15 @@ class DtoValidationTest {
     void saveResultShouldRejectNullCategoryResults() throws Exception {
         resultMvc.perform(post("/api/examRecord")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"examName\":\"测评A\"}"))
+                        .content("{\"examId\":\"507f1f77bcf86cd799439011\",\"examName\":\"测评A\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void saveResultShouldRejectMissingExamId() throws Exception {
+        resultMvc.perform(post("/api/examRecord")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"examName\":\"测评A\",\"categoryResults\":[]}"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -122,7 +130,7 @@ class DtoValidationTest {
 
         resultMvc.perform(post("/api/examRecord")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"examName\":\"测评A\",\"categoryResults\":[]}"))
+                        .content("{\"examId\":\"507f1f77bcf86cd799439011\",\"examName\":\"测评A\",\"categoryResults\":[]}"))
                 .andExpect(status().isOk());
     }
 

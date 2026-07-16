@@ -1524,6 +1524,7 @@ class EvalWritingQuestionByCorrectKeywordCount extends QuestionEvalRule with Fuz
     assert(res.handWriteImageData != null);
 
     String ansContent = await handWritingRecognize(res.handWriteImageData!);
+    res.writingContent = ansContent;
     debugPrint("识别结果：$ansContent");
 
     int count = 0;
@@ -1592,6 +1593,7 @@ class EvalWritingQuestionByMatchRate extends QuestionEvalRule with FuzzyEvalSett
     assert(res.handWriteImageData != null);
 
     String ansContent = await handWritingRecognize(res.handWriteImageData!);
+    res.writingContent = ansContent;
     debugPrint("识别结果：$ansContent");
 
     int count = 0;

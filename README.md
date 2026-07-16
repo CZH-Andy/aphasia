@@ -14,6 +14,7 @@
 
 - [安全与账号管理](docs/SECURITY.md)
 - [数据、备份与恢复](docs/DATA_AND_BACKUP.md)
+- [作答记录完整性与归档](docs/RESULT_DATA_INTEGRITY.md)
 
 ---
 

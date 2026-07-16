@@ -13,6 +13,8 @@ import java.util.List;
 public class ExamResult {
     String id;
     String ownerId;
+    String examId;
+    Long revision;
     String resultText;
     Double finalScore;
     Date startTime;

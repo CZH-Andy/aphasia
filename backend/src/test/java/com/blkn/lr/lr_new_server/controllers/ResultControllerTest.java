@@ -78,9 +78,9 @@ class ResultControllerTest {
         saved.setCategoryResults(List.of());
         when(service.saveResult(any(), eq(UID))).thenReturn(saved);
 
-        mvc.perform(post("/api/examRecord")
+                mvc.perform(post("/api/examRecord")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"examName\":\"t\",\"categoryResults\":[]}")
+                        .content("{\"examId\":\"507f1f77bcf86cd799439011\",\"examName\":\"t\",\"categoryResults\":[]}")
                         .requestAttr("uid", UID))
                 .andExpect(status().isOk());
         verify(service).saveResult(any(), eq(UID));

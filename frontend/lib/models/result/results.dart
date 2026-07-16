@@ -1,16 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:aphasia_recovery/mixin/util_mixin.dart';
 import 'package:aphasia_recovery/models/exam/exam_recovery.dart';
 import 'package:aphasia_recovery/models/question/question.dart';
 import 'package:aphasia_recovery/models/rules.dart';
 import 'package:aphasia_recovery/models/typedef.dart';
 import 'package:aphasia_recovery/settings.dart';
 import 'package:aphasia_recovery/utils/http/http_manager.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 part 'results.g.dart';
@@ -20,6 +17,8 @@ typedef ExtraResults = Map<String, String>;
 @JsonSerializable(explicitToJson: true)
 class ExamResult {
   String? id;
+  String? examId;
+  int revision;
   String? resultText;
   double? finalScore;
   DateTime? startTime;
@@ -31,6 +30,8 @@ class ExamResult {
 
   ExamResult(
       {this.id,
+      this.examId,
+      this.revision = 0,
       this.resultText,
       this.finalScore,
       this.startTime,
@@ -75,23 +76,21 @@ class ExamResult {
       // var jsonData = [fakeResult.toJson(), fakeResult1.toJson()];
 
       return jsonData.map((e) => ExamResult.fromJson(e)).toList();
-    } on Error catch (e) {
+    } on Error {
       rethrow;
     }
   }
 
   static Future<ExamResult> createExamResult(
       {required ExamQuestionSet exam, required bool isRecovery}) async {
-    final testResult = ExamResult(
-        isRecovery: isRecovery, examName: exam.name, startTime: DateTime.now());
-    for (var cate in exam.categories) {
-      var cateRes = CategoryResult(name: cate.description);
-      for (var subCate in cate.subCategories) {
-        var subCateRes = SubCategoryResult(name: subCate.description);
-        cateRes.subResults.add(subCateRes);
-      }
-      testResult.categoryResults.add(cateRes);
+    final examId = exam.id;
+    if (examId == null || examId.isEmpty) {
+      throw ArgumentError("只能为已保存的套题创建作答记录");
     }
+    final testResult = ExamResult(
+        examId: examId,
+        isRecovery: isRecovery,
+        examName: exam.name);
 
     var jsonData = await HttpClientManager().post(
         url: "${HttpConstants.backendBaseUrl}/api/examRecord",
@@ -265,10 +264,12 @@ class ChoiceQuestionResult extends QuestionResult {
 class WritingQuestionResult extends QuestionResult {
   @JsonKey(includeToJson: false, includeFromJson: false)
   Uint8List? handWriteImageData;
+  String writingContent;
 
   WritingQuestionResult(
       {required super.sourceQuestion,
       this.handWriteImageData,
+      this.writingContent = "",
       super.answerTime});
 
   factory WritingQuestionResult.fromJson(Map<String, dynamic> json) =>

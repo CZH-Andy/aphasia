@@ -40,6 +40,12 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(403, ex.getMessage()));
     }
 
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ApiResponse<Object>> handleConflict(ConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(409, ex.getMessage()));
+    }
+
     @ExceptionHandler(FileUploadException.class)
     public ResponseEntity<ApiResponse<Object>> handleFileUpload(FileUploadException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)

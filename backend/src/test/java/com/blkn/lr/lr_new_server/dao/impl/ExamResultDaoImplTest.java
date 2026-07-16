@@ -5,6 +5,7 @@ import com.mongodb.client.result.UpdateResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.ExecutableUpdateOperation.ExecutableUpdate;
 import org.springframework.data.mongodb.core.ExecutableUpdateOperation.TerminatingUpdate;
 import org.springframework.data.mongodb.core.ExecutableUpdateOperation.UpdateWithUpdate;
@@ -16,11 +17,13 @@ import org.springframework.data.mongodb.core.query.Update;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -46,10 +49,98 @@ class ExamResultDaoImplTest {
     }
 
     @Test
-    void saveShouldPassThroughTemplate() {
+    void insertShouldPassThroughTemplate() {
         ExamResult r = new ExamResult();
-        when(template.save(r)).thenReturn(r);
-        assertSame(r, dao.save(r));
+        when(template.insert(r)).thenReturn(r);
+        assertSame(r, dao.insert(r));
+    }
+
+    @Test
+    void findByIdWithOwnerIdShouldMatchOwnerAndExcludeDeletedRecords() {
+        ExamResult r = new ExamResult();
+        when(template.findOne(any(Query.class), eq(ExamResult.class))).thenReturn(r);
+
+        assertSame(r, dao.findByIdWithOwnerId(OWNER_ID, RESULT_ID));
+
+        ArgumentCaptor<Query> captor = ArgumentCaptor.forClass(Query.class);
+        verify(template).findOne(captor.capture(), eq(ExamResult.class));
+        String query = captor.getValue().getQueryObject().toString();
+        assertTrue(query.contains("_id"), query);
+        assertTrue(query.contains("ownerId"), query);
+        assertTrue(query.contains(OWNER_ID), query);
+        assertTrue(query.contains("isDisabled"), query);
+    }
+
+    @Test
+    void findByIdWithOwnerIdShouldIgnoreInvalidObjectId() {
+        assertEquals(null, dao.findByIdWithOwnerId(OWNER_ID, "invalid"));
+        verify(template, never()).findOne(any(Query.class), eq(ExamResult.class));
+    }
+
+    @Test
+    void updateOwnedShouldUseOwnerRevisionAndOnlyMutableFields() {
+        ExamResult model = new ExamResult();
+        model.setId(RESULT_ID);
+        model.setOwnerId(OWNER_ID);
+        model.setExamId("exam-1");
+        model.setResultText("诊断");
+        model.setFinalScore(8D);
+        model.setCategoryResults(List.of());
+        when(template.findAndModify(
+                any(Query.class),
+                any(Update.class),
+                any(FindAndModifyOptions.class),
+                eq(ExamResult.class))).thenReturn(model);
+
+        assertSame(model, dao.updateOwned(model, 3));
+
+        ArgumentCaptor<Query> queryCaptor = ArgumentCaptor.forClass(Query.class);
+        ArgumentCaptor<Update> updateCaptor = ArgumentCaptor.forClass(Update.class);
+        verify(template).findAndModify(
+                queryCaptor.capture(),
+                updateCaptor.capture(),
+                any(FindAndModifyOptions.class),
+                eq(ExamResult.class));
+
+        String query = queryCaptor.getValue().getQueryObject().toString();
+        assertTrue(query.contains("_id"), query);
+        assertTrue(query.contains("ownerId"), query);
+        assertTrue(query.contains("revision"), query);
+        assertTrue(query.contains("3"), query);
+        assertTrue(query.contains("isDisabled"), query);
+
+        String update = updateCaptor.getValue().getUpdateObject().toString();
+        assertTrue(update.contains("revision") && update.contains("4"), update);
+        assertTrue(update.contains("categoryResults"), update);
+        assertTrue(update.contains("finalScore"), update);
+        assertFalse(update.contains("ownerId"), update);
+        assertFalse(update.contains("startTime"), update);
+        assertFalse(update.contains("isDisabled"), update);
+    }
+
+    @Test
+    void updateOwnedRevisionZeroShouldAlsoMatchLegacyMissingRevision() {
+        ExamResult model = new ExamResult();
+        model.setId(RESULT_ID);
+        model.setOwnerId(OWNER_ID);
+        model.setCategoryResults(List.of());
+        when(template.findAndModify(
+                any(Query.class),
+                any(Update.class),
+                any(FindAndModifyOptions.class),
+                eq(ExamResult.class))).thenReturn(model);
+
+        dao.updateOwned(model, 0);
+
+        ArgumentCaptor<Query> captor = ArgumentCaptor.forClass(Query.class);
+        verify(template).findAndModify(
+                captor.capture(),
+                any(Update.class),
+                any(FindAndModifyOptions.class),
+                eq(ExamResult.class));
+        String query = captor.getValue().getQueryObject().toString();
+        assertTrue(query.contains("$or"), query);
+        assertTrue(query.contains("revision"), query);
     }
 
     @Test
@@ -112,5 +203,11 @@ class ExamResultDaoImplTest {
         verify(withUpdate).apply(updateCaptor.capture());
         String updateStr = updateCaptor.getValue().getUpdateObject().toString();
         assertTrue(updateStr.contains("isDisabled"), "must soft-delete: " + updateStr);
+    }
+
+    @Test
+    void deleteByIdWithOwnerIdShouldIgnoreInvalidObjectId() {
+        dao.deleteByIdWithOwnerId(OWNER_ID, "invalid");
+        verify(template, never()).update(ExamResult.class);
     }
 }

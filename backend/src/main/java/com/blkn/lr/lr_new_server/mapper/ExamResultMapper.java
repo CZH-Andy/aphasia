@@ -29,6 +29,8 @@ public class ExamResultMapper {
 
         ExamResultDto dto = new ExamResultDto();
         dto.setId(examResult.getId());
+        dto.setExamId(examResult.getExamId());
+        dto.setRevision(examResult.getRevision() == null ? 0 : examResult.getRevision());
         dto.setResultText(examResult.getResultText());
         dto.setFinalScore(examResult.getFinalScore());
         dto.setStartTime(examResult.getStartTime());
@@ -46,6 +48,8 @@ public class ExamResultMapper {
         ExamResult model = new ExamResult();
         model.setId(dto.getId());
         model.setOwnerId(ownerId);
+        model.setExamId(dto.getExamId());
+        model.setRevision(dto.getRevision() == null ? 0 : dto.getRevision());
         model.setResultText(dto.getResultText());
         model.setFinalScore(dto.getFinalScore());
         model.setStartTime(dto.getStartTime());
@@ -86,6 +90,11 @@ public class ExamResultMapper {
         model.setIsHinted(dto.getIsHinted());
         model.setExtraResults(dto.getExtraResults());
         model.setTypeName(dto.getTypeName());
+        model.setAudioContent(dto.getAudioContent());
+        model.setChoiceSelected(dto.getChoiceSelected());
+        model.setActions(dto.getActions());
+        model.setClickCoordinate(dto.getClickCoordinate());
+        model.setWritingContent(dto.getWritingContent());
         return model;
     }
 
@@ -93,6 +102,7 @@ public class ExamResultMapper {
         var ids = examResult.getCategoryResults().stream()
                 .flatMap(c -> c.getSubResults().stream())
                 .flatMap(s -> s.getQuestionResults().stream())
+                .filter(q -> q.getSourceQuestionSnapshot() == null)
                 .map(QuestionResult::getSourceQuestion)
                 .toList();
         return questionDao.findAllByIds(ids).stream()
@@ -122,12 +132,19 @@ public class ExamResultMapper {
 
     private QuestionResultDto questionResultToDto(QuestionResult qr, Map<String, Question> questionMap) {
         QuestionResultDto dto = new QuestionResultDto();
-        dto.setSourceQuestion(questionMapper.toDto(questionMap.get(qr.getSourceQuestion())));
+        dto.setSourceQuestion(qr.getSourceQuestionSnapshot() == null
+                ? questionMapper.toDto(questionMap.get(qr.getSourceQuestion()))
+                : questionMapper.snapshotToDto(qr.getSourceQuestionSnapshot()));
         dto.setFinalScore(qr.getFinalScore());
         dto.setAnswerTime(qr.getAnswerTime());
         dto.setIsHinted(qr.getIsHinted());
         dto.setExtraResults(qr.getExtraResults());
         dto.setTypeName(qr.getTypeName());
+        dto.setAudioContent(qr.getAudioContent());
+        dto.setChoiceSelected(qr.getChoiceSelected());
+        dto.setActions(qr.getActions());
+        dto.setClickCoordinate(qr.getClickCoordinate());
+        dto.setWritingContent(qr.getWritingContent());
         return dto;
     }
 }
