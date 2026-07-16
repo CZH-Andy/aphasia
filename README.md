@@ -14,6 +14,7 @@
 
 - [安全与账号管理](docs/SECURITY.md)
 - [认证接口契约与迁移](docs/AUTHENTICATION_CONTRACT.md)
+- [客户端 Token 安全存储与迁移](docs/TOKEN_STORAGE.md)
 - [数据、备份与恢复](docs/DATA_AND_BACKUP.md)
 - [作答记录完整性与归档](docs/RESULT_DATA_INTEGRITY.md)
 - [媒体访问控制与密钥轮换](docs/MEDIA_ACCESS_CONTROL.md)
@@ -364,7 +365,7 @@ flutter run \
 # 后端 JUnit（393 项）
 cd backend && ./mvnw test
 
-# 前端 widget + unit test（108 项）
+# 前端 widget + unit test（114 项）
 cd frontend && flutter test
 flutter analyze   # 静态检查
 

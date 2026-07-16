@@ -71,11 +71,11 @@ Pragma: no-cache
 3. 在网关或客户端遥测中确认至少一个升级周期内不再出现 `X-Auth-Header-Deprecation`，且不再调用 `/api/auth`。
 4. 删除旧 `Token` header fallback、旧路由及对应兼容测试。
 
-本次变更不修改 MongoDB、Redis 或种子数据结构，不需要数据迁移或恢复操作。回滚应用版本也不会改变现有账号和 Token 数据；但旧客户端的密码请求头登录只在旧后端版本中有效。
+认证接口变更不修改 MongoDB、Redis 或种子数据结构。客户端会把旧 SharedPreferences Token 一次性迁移到系统安全存储；迁移、发布和回滚边界见 [客户端 Token 安全存储与迁移](TOKEN_STORAGE.md)。
 
 ## 日志与运维要求
 
 - 禁止记录请求体、`password`、`Token`、完整认证响应或 SharedPreferences 内容。
 - 反向代理和 APM 必须关闭认证路径的 body/header 采集，或配置字段级脱敏。
 - 生产环境必须对登录和注册增加按 IP、账号及设备维度的限流。
-- 客户端目前仍把 Token 保存在 SharedPreferences。后续应迁移到系统安全存储，并建立服务端可主动吊销的会话机制。
+- 客户端已使用系统安全存储。后续仍需建立服务端可主动吊销的会话机制，并在升级周期结束后删除旧 `Token` header fallback。

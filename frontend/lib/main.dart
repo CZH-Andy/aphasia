@@ -1,7 +1,7 @@
-import 'package:aphasia_recovery/utils/thirdparty/thirdparty_api.dart';
 import 'package:aphasia_recovery/widgets/my_app.dart';
 import 'package:flutter/material.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
