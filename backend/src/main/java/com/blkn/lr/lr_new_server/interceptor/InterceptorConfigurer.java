@@ -1,5 +1,6 @@
 package com.blkn.lr.lr_new_server.interceptor;
 
+import com.blkn.lr.lr_new_server.util.AuthTokenResolver;
 import com.blkn.lr.lr_new_server.util.TokenUtil;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,7 +45,8 @@ public class InterceptorConfigurer implements WebMvcConfigurer {
 				.allowedOriginPatterns(splitByComma(allowedOriginPatterns))
 				.allowedMethods(splitByComma(allowedMethods))
 				.allowedHeaders("*")
-				.exposedHeaders("Token", "Deprecation", "Link");
+				.exposedHeaders("Deprecation", "Link", "WWW-Authenticate",
+						AuthTokenResolver.LEGACY_HEADER_DEPRECATION_RESPONSE);
 	}
 
 	private String[] splitByComma(String value) {

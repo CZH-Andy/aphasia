@@ -3,6 +3,7 @@ package com.blkn.lr.lr_new_server.interceptor;
 import com.blkn.lr.lr_new_server.util.TokenUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -35,10 +37,13 @@ class RequireRoleInterceptorTest {
         String patientToken = tokenUtil.getToken("patient-uid", 1);
 
         mockMvc.perform(post("/api/test/role/doctor-only")
-                        .header("Token", patientToken)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + patientToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"hello\":\"world\"}"))
                 .andExpect(status().isForbidden())
+                .andExpect(header().string(
+                        HttpHeaders.WWW_AUTHENTICATE,
+                        "Bearer realm=\"aphasia-api\", error=\"insufficient_scope\""))
                 .andExpect(jsonPath("$.code").value(403))
                 .andExpect(jsonPath("$.message").value("权限不足"));
     }
@@ -48,11 +53,24 @@ class RequireRoleInterceptorTest {
         String doctorToken = tokenUtil.getToken("doctor-uid", 2);
 
         mockMvc.perform(post("/api/test/role/doctor-only")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + doctorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"hello\":\"world\"}"))
+                .andExpect(status().isOk())
+                .andExpect(header().doesNotExist("Token"))
+                .andExpect(jsonPath("$.msg").value("ok"));
+    }
+
+    @Test
+    void shouldAcceptLegacyTokenHeaderAndAdvertiseMigration() throws Exception {
+        String doctorToken = tokenUtil.getToken("doctor-uid", 2);
+
+        mockMvc.perform(post("/api/test/role/doctor-only")
                         .header("Token", doctorToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"hello\":\"world\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.msg").value("ok"));
+                .andExpect(header().string("X-Auth-Header-Deprecation", "Token"));
     }
 
     @RestController

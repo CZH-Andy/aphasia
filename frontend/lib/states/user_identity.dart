@@ -61,7 +61,7 @@ class UserIdentity extends ChangeNotifier {
       Map<String, dynamic> jsonData = await HttpClientManager().post(
           url: '${HttpConstants.backendBaseUrl}/api/auth/token',
           body: '',
-          headers: {"Token": savedToken},
+          headers: {"Authorization": "Bearer $savedToken"},
           setToken: false);
       UserIdentity identity = UserIdentity(
           identity: jsonData['identity'],

@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -75,7 +76,7 @@ class FullProcessFlowTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body);
         if (token != null) {
-            builder.header("Token", token);
+            builder.header(HttpHeaders.AUTHORIZATION, "Bearer " + token);
         }
         return mockMvc.perform(builder);
     }

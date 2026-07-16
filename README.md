@@ -361,10 +361,10 @@ flutter run \
 ## 跑测试
 
 ```bash
-# 后端 JUnit（381 项）
+# 后端 JUnit（393 项）
 cd backend && ./mvnw test
 
-# 前端 widget + unit test（105 项）
+# 前端 widget + unit test（108 项）
 cd frontend && flutter test
 flutter analyze   # 静态检查
 

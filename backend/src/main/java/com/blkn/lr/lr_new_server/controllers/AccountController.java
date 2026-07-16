@@ -4,9 +4,13 @@ import com.blkn.lr.lr_new_server.dto.common.UserDto;
 import com.blkn.lr.lr_new_server.dto.request.LoginRequest;
 import com.blkn.lr.lr_new_server.exception.AuthException;
 import com.blkn.lr.lr_new_server.services.AccountServices;
+import com.blkn.lr.lr_new_server.util.AuthTokenResolver;
+import com.blkn.lr.lr_new_server.util.AuthTokenResolver.ResolvedToken;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -25,9 +29,9 @@ public class AccountController {
 
     @PostMapping("/auth/token")
     public UserDto authenticateWithToken(
-            @RequestHeader(value = "Token", required = false) String token,
+            HttpServletRequest request,
             HttpServletResponse response) {
-        return authenticateWithToken(token, response, false);
+        return authenticateWithToken(request, response, false);
     }
 
     /**
@@ -36,9 +40,9 @@ public class AccountController {
     @Deprecated
     @PostMapping("/auth")
     public UserDto authenticateWithTokenLegacy(
-            @RequestHeader(value = "Token", required = false) String token,
+            HttpServletRequest request,
             HttpServletResponse response) {
-        return authenticateWithToken(token, response, true);
+        return authenticateWithToken(request, response, true);
     }
 
     @PostMapping("/register")
@@ -47,16 +51,33 @@ public class AccountController {
         return service.register(dto);
     }
 
-    private UserDto authenticateWithToken(String token, HttpServletResponse response, boolean legacyEndpoint) {
+    private UserDto authenticateWithToken(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            boolean legacyEndpoint) {
         disableCaching(response);
         if (legacyEndpoint) {
             response.setHeader("Deprecation", LEGACY_AUTH_DEPRECATION_DATE);
             response.setHeader("Link", "</api/auth/token>; rel=\"successor-version\"");
         }
-        if (token == null || token.isBlank()) {
+        ResolvedToken resolvedToken = AuthTokenResolver.resolve(request);
+        if (resolvedToken.isMissing()) {
+            response.setHeader(
+                    HttpHeaders.WWW_AUTHENTICATE,
+                    AuthTokenResolver.bearerChallenge(null));
             throw new AuthException("缺少Token");
         }
-        return service.loginWithToken(token);
+        if (resolvedToken.legacyHeader()) {
+            response.setHeader(AuthTokenResolver.LEGACY_HEADER_DEPRECATION_RESPONSE, "Token");
+        }
+        try {
+            return service.loginWithToken(resolvedToken.token());
+        } catch (AuthException ex) {
+            response.setHeader(
+                    HttpHeaders.WWW_AUTHENTICATE,
+                    AuthTokenResolver.bearerChallenge("invalid_token"));
+            throw ex;
+        }
     }
 
     private void disableCaching(HttpServletResponse response) {

@@ -197,7 +197,8 @@ void main() {
     when(client.post(
       Uri.parse('${HttpConstants.backendBaseUrl}/api/auth/token'),
       body: '',
-      headers: argThat(containsPair('Token', 'stale-token'), named: 'headers'),
+      headers: argThat(containsPair('Authorization', 'Bearer stale-token'),
+          named: 'headers'),
     )).thenAnswer((_) async =>
         _utf8Resp(jsonEncode({'code': 401, 'message': 'Token无效或已过期'}), 401));
 

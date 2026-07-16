@@ -1,10 +1,14 @@
 package com.blkn.lr.lr_new_server.interceptor;
 
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.blkn.lr.lr_new_server.exception.BusinessErrorException;
+import com.blkn.lr.lr_new_server.util.AuthTokenResolver;
+import com.blkn.lr.lr_new_server.util.AuthTokenResolver.ResolvedToken;
 import com.blkn.lr.lr_new_server.util.TokenUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.method.HandlerMethod;
 
@@ -14,8 +18,6 @@ import java.util.Arrays;
 
 @Slf4j
 public class TokenInterceptor implements HandlerInterceptor {
-	public final static String LOGIN_SYMBOL = "uid";
-
 	private final TokenUtil tokenUtil;
 
 	public TokenInterceptor(TokenUtil tokenUtil) {
@@ -28,37 +30,45 @@ public class TokenInterceptor implements HandlerInterceptor {
 			return true;
 		}
 
-		String token = request.getHeader("Token");
-
-		// Token checking - mobile
-        //			HttpSession session = request.getSession();
-        //			return session.getAttribute("uid") != null;
-        if (token != null) {
-			DecodedJWT decodedJWT = tokenUtil.verifyToken(token);
-			if (decodedJWT != null) {
-				// valid token => add the identity information into the request
-				String uid = decodedJWT.getClaim("uid").asString();
-				int uType = decodedJWT.getClaim("uType").asInt();
-				request.setAttribute("uid", uid);
-				request.setAttribute("uType", uType);
-
-				if (!hasRequiredRole(handler, uType)) {
-					writeJsonError(response, 403, "权限不足");
-					return false;
-				}
-
-				// refresh token and put in header
-				response.addHeader("Token", tokenUtil.getToken(uid, uType));
-				return true;
-			} else {
-				// invalid token => return json with state = 0
-				writeJsonError(response, 403, "无效Token");
-				return false;
-			}
-		} else {
-			writeJsonError(response, 401, "缺少Token");
+		ResolvedToken resolvedToken;
+		try {
+			resolvedToken = AuthTokenResolver.resolve(request);
+		} catch (BusinessErrorException ex) {
+			writeBearerError(response, 400, "invalid_request", ex.getMessage());
 			return false;
 		}
+
+		if (resolvedToken.isMissing()) {
+			writeBearerError(response, 401, null, "缺少Token");
+			return false;
+		}
+
+		if (resolvedToken.legacyHeader()) {
+			response.setHeader(AuthTokenResolver.LEGACY_HEADER_DEPRECATION_RESPONSE, "Token");
+		}
+
+		DecodedJWT decodedJWT = tokenUtil.verifyToken(resolvedToken.token());
+		if (decodedJWT == null) {
+			writeBearerError(response, 401, "invalid_token", "Token无效或已过期");
+			return false;
+		}
+
+		String uid = decodedJWT.getClaim("uid").asString();
+		Integer uType = decodedJWT.getClaim("uType").asInt();
+		if (uid == null || uid.isBlank() || uType == null) {
+			writeBearerError(response, 401, "invalid_token", "Token无效或已过期");
+			return false;
+		}
+
+		request.setAttribute("uid", uid);
+		request.setAttribute("uType", uType);
+
+		if (!hasRequiredRole(handler, uType)) {
+			writeBearerError(response, 403, "insufficient_scope", "权限不足");
+			return false;
+		}
+
+		return true;
 	}
 
 	private boolean hasRequiredRole(Object handler, int uType) {
@@ -78,10 +88,17 @@ public class TokenInterceptor implements HandlerInterceptor {
 		return Arrays.stream(requireRole.value()).anyMatch(role -> role == uType);
 	}
 
-	private void writeJsonError(HttpServletResponse response, int status, String message) {
+	private void writeBearerError(
+			HttpServletResponse response,
+			int status,
+			String bearerError,
+			String message) {
 		response.setCharacterEncoding("UTF-8");
 		response.setContentType("application/json;charset=UTF-8");
 		response.setStatus(status);
+		response.setHeader(
+				HttpHeaders.WWW_AUTHENTICATE,
+				AuthTokenResolver.bearerChallenge(bearerError));
 		String body = "{\"code\":" + status + ",\"message\":\"" + message + "\",\"data\":null}";
 		try (PrintWriter writer = response.getWriter()) {
 			writer.print(body);

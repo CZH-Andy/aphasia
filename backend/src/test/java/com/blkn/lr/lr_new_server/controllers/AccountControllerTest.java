@@ -2,11 +2,13 @@ package com.blkn.lr.lr_new_server.controllers;
 
 import com.blkn.lr.lr_new_server.dto.common.UserDto;
 import com.blkn.lr.lr_new_server.dto.request.LoginRequest;
+import com.blkn.lr.lr_new_server.exception.AuthException;
 import com.blkn.lr.lr_new_server.exception.GlobalExceptionHandler;
 import com.blkn.lr.lr_new_server.services.AccountServices;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -72,11 +74,47 @@ class AccountControllerTest {
     void tokenEndpointShouldForwardTokenAndDisableCaching() throws Exception {
         when(service.loginWithToken("tok")).thenReturn(new UserDto());
 
-        mvc.perform(post("/api/auth/token").header("Token", "tok"))
+        mvc.perform(post("/api/auth/token")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer tok"))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Cache-Control", "no-store"));
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(header().doesNotExist("X-Auth-Header-Deprecation"));
 
         verify(service).loginWithToken("tok");
+    }
+
+    @Test
+    void tokenEndpointShouldAcceptLegacyHeaderAndAdvertiseMigration() throws Exception {
+        when(service.loginWithToken("tok")).thenReturn(new UserDto());
+
+        mvc.perform(post("/api/auth/token").header("Token", "tok"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Auth-Header-Deprecation", "Token"));
+
+        verify(service).loginWithToken("tok");
+    }
+
+    @Test
+    void tokenEndpointShouldRejectDuplicateCredentialMethods() throws Exception {
+        mvc.perform(post("/api/auth/token")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer modern")
+                        .header("Token", "legacy"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void tokenEndpointShouldChallengeInvalidBearerToken() throws Exception {
+        when(service.loginWithToken("invalid"))
+                .thenThrow(new AuthException("Token无效或已过期"));
+
+        mvc.perform(post("/api/auth/token")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer invalid"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string(
+                        HttpHeaders.WWW_AUTHENTICATE,
+                        "Bearer realm=\"aphasia-api\", error=\"invalid_token\""));
     }
 
     @Test
@@ -89,7 +127,8 @@ class AccountControllerTest {
                         .header("password", "ignored"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Deprecation", "@1784217600"))
-                .andExpect(header().string("Link", "</api/auth/token>; rel=\"successor-version\""));
+                .andExpect(header().string("Link", "</api/auth/token>; rel=\"successor-version\""))
+                .andExpect(header().string("X-Auth-Header-Deprecation", "Token"));
 
         verify(service).loginWithToken("tok");
     }
@@ -100,7 +139,10 @@ class AccountControllerTest {
                         .header("identity", "alice")
                         .header("password", "pwd"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(header().string("Cache-Control", "no-store"));
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(header().string(
+                        HttpHeaders.WWW_AUTHENTICATE,
+                        "Bearer realm=\"aphasia-api\""));
 
         verifyNoInteractions(service);
     }

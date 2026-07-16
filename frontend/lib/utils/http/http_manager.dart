@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:aphasia_recovery/exceptions/http_exceptions.dart';
 import 'package:aphasia_recovery/utils/http/http_mock.mocks.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/http.dart';
 
@@ -26,26 +25,21 @@ class HttpClientManager {
     _testMode = true;
   }
 
-  Future<Map<String, String>> setTokenToHeaders(Map<String, String>? headers) async {
-    headers ??= {};
+  Future<Map<String, String>> setTokenToHeaders(
+      Map<String, String>? headers) async {
+    final resolvedHeaders = <String, String>{...?headers};
     String? token = await WrappedSharedPref().retrieveToken();
 
-    if (token != null) {
-      headers['Token'] = token;
+    if (token != null && token.isNotEmpty) {
+      resolvedHeaders.remove('Token');
+      resolvedHeaders['Authorization'] = 'Bearer $token';
     }
 
-    return headers;
+    return resolvedHeaders;
   }
 
-  Future<bool> saveToken(String? token) async {
-    if (token != null) {
-      return await WrappedSharedPref().saveToken(token);
-    } else {
-      return false;
-    }
-  }
-
-  Future<dynamic> get({required String url, Map<String, String>? headers}) async {
+  Future<dynamic> get(
+      {required String url, Map<String, String>? headers}) async {
     headers = await setTokenToHeaders(headers);
 
     Response response;
@@ -56,43 +50,49 @@ class HttpClientManager {
     }
 
     if (response.statusCode == 200) {
-      saveToken(response.headers['Token']);
-
       return jsonDecode(utf8.decode(response.bodyBytes));
     } else {
-      throw HttpRequestException(message: utf8.decode(response.bodyBytes), response: response);
+      throw HttpRequestException(
+          message: utf8.decode(response.bodyBytes), response: response);
     }
   }
 
-  Future<dynamic> post({required String url, required String body, Map<String, String>? headers, bool setToken = true}) async {
+  Future<dynamic> post(
+      {required String url,
+      required String body,
+      Map<String, String>? headers,
+      bool setToken = true}) async {
     if (setToken) {
       headers = await setTokenToHeaders(headers);
+    } else {
+      headers = <String, String>{...?headers};
     }
 
     Response response;
 
-    headers ??= {};
     headers['Content-type'] = "application/json";
     headers['Accept'] = "application/json";
     if (_testMode) {
-      response = await testClient!.post(Uri.parse(url), body: body, headers: headers);
+      response =
+          await testClient!.post(Uri.parse(url), body: body, headers: headers);
     } else {
-      response = await http.post(Uri.parse(url),
+      response = await http.post(
+        Uri.parse(url),
         body: body,
         headers: headers,
       );
     }
 
     if (response.statusCode == 200) {
-      saveToken(response.headers['Token']);
-
       return jsonDecode(utf8.decode(response.bodyBytes));
     } else {
-      throw HttpRequestException(message: utf8.decode(response.bodyBytes), response: response);
+      throw HttpRequestException(
+          message: utf8.decode(response.bodyBytes), response: response);
     }
   }
 
-  Future<bool> delete({required String url, Map<String, String>? headers}) async {
+  Future<bool> delete(
+      {required String url, Map<String, String>? headers}) async {
     headers = await setTokenToHeaders(headers);
 
     Response response;
@@ -100,19 +100,24 @@ class HttpClientManager {
     if (_testMode) {
       response = await testClient!.delete(Uri.parse(url), headers: headers);
     } else {
-      response = await http.delete(Uri.parse(url), headers: headers,);
+      response = await http.delete(
+        Uri.parse(url),
+        headers: headers,
+      );
     }
 
     if (response.statusCode == 200) {
-      saveToken(response.headers['Token']);
-
       return true;
     } else {
-      throw HttpRequestException(message: utf8.decode(response.bodyBytes), response: response);
+      throw HttpRequestException(
+          message: utf8.decode(response.bodyBytes), response: response);
     }
   }
 
-  Future<bool> patch({required String url, required String body, Map<String, String>? headers}) async {
+  Future<bool> patch(
+      {required String url,
+      required String body,
+      Map<String, String>? headers}) async {
     headers = await setTokenToHeaders(headers);
 
     Response response;
@@ -120,41 +125,45 @@ class HttpClientManager {
     headers['Content-type'] = "application/json";
     headers['Accept'] = "application/json";
     if (_testMode) {
-      response = await testClient!.patch(Uri.parse(url), body: body, headers: headers);
+      response =
+          await testClient!.patch(Uri.parse(url), body: body, headers: headers);
     } else {
-      response = await http.patch(Uri.parse(url),
+      response = await http.patch(
+        Uri.parse(url),
         body: body,
         headers: headers,
       );
     }
 
     if (response.statusCode == 200) {
-      saveToken(response.headers['Token']);
-
       return true;
     } else {
-      throw HttpRequestException(message: utf8.decode(response.bodyBytes), response: response);
+      throw HttpRequestException(
+          message: utf8.decode(response.bodyBytes), response: response);
     }
   }
 
-  Future<dynamic> multipartRequest({required MultipartFile file, Map<String, String>? headers, required String authority, required String path}) async {
+  Future<dynamic> multipartRequest(
+      {required MultipartFile file,
+      Map<String, String>? headers,
+      required String authority,
+      required String path}) async {
     headers = await setTokenToHeaders(headers);
     http.StreamedResponse response;
 
     final uri = Uri.http(authority, path);
-    final request = http.MultipartRequest("POST", uri)
-        ..files.add(file);
+    final request = http.MultipartRequest("POST", uri)..files.add(file);
 
     request.headers.addAll(headers);
 
     response = await request.send();
 
     if (response.statusCode == 200) {
-      saveToken(response.headers['Token']);
-
       return jsonDecode(utf8.decode(await response.stream.toBytes()));
     } else {
-      throw HttpRequestException(message: utf8.decode(await response.stream.toBytes()), streamedResponse: response);
+      throw HttpRequestException(
+          message: utf8.decode(await response.stream.toBytes()),
+          streamedResponse: response);
     }
   }
 }

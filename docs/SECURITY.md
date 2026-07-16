@@ -7,7 +7,10 @@
 - 公开接口 `POST /api/register` 只允许创建患者账号（role 1）。
 - 密码登录使用 `POST /api/auth/login` 的 JSON 请求体，不再通过自定义 header 传输密码。
 - 未知账号和错误密码统一返回 401，并执行等价的 BCrypt 校验以降低账号枚举风险。
-- Token 恢复会话使用 `POST /api/auth/token`；旧 `POST /api/auth` 仅保留 token-only 兼容能力。
+- 受保护接口和 Token 恢复会话使用标准 `Authorization: Bearer`；旧 `Token` header 暂时单独兼容并返回迁移提示。
+- 缺失或无效凭据返回 401 和 `WWW-Authenticate`，有效账号权限不足才返回 403。
+- JWT 不再在每个业务响应中滚动，续期只发生在登录、注册或显式 Token 认证时。
+- 旧 `POST /api/auth` 仅保留 token-only 兼容能力。
 - 登录、Token 认证和注册成功响应设置 `Cache-Control: no-store`。
 - 客户端即使伪造 `role: 2`，DTO 校验和服务层也会拒绝或降权。
 - 医生账号不得通过公开注册创建，只能由受控的管理员流程、审核后的数据导入或演示种子创建。
@@ -59,6 +62,6 @@
 
 - 服务端已锁定作答记录归属、顺序、修订号、汇总分数和诊断文本，并保存原始作答载荷；但单题分数仍由客户端产生，恶意客户端仍可能在满分范围内伪造得分。详见 [作答记录完整性与归档](RESULT_DATA_INTEGRITY.md)。
 - 媒体下载已有短期签名校验，但尚无自动生命周期清理、引用计数和患者撤回授权后的即时缓存清除。
-- Token 仍通过自定义 `Token` header 传输并保存在客户端 SharedPreferences，尚未迁移到标准 Bearer 认证、系统安全存储和服务端主动吊销。
+- Token 仍保存在客户端 SharedPreferences，旧 `Token` header fallback 也尚未完成下线；系统安全存储和服务端主动吊销仍待实现。
 - 百度部分调用尚未统一设置连接、读取和总超时。
 - 尚无统一限流、审计日志、Token 主动吊销和管理员账号管理。

@@ -10,14 +10,14 @@ import 'package:mockito/mockito.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 验证 P0 回归修复：LLM 诊断/修复接口必须经过 HttpClientManager，
-/// 这样登录后保存的 Token 才会被自动塞进请求头。
+/// 这样登录后保存的 Token 才会作为 Authorization Bearer 自动加入请求。
 /// 之前 llm_diagnose.dart / llm_repair.dart 用裸 http.post 直接调
-/// /api/diagnose2, /api/repair，没带 Token 头，
+/// /api/diagnose2, /api/repair，没带认证 header，
 /// 在 P0 移除拦截器白名单之后会一律 401。（/api/diagnose1 已下线）
 ///
 /// 这里通过 HttpClientManager + 已保存的 Token 校验：
 ///   1) 请求被发到正确的 URL
-///   2) Token 头被自动加上
+///   2) Authorization Bearer 被自动加上，旧 Token header 不再发送
 ///   3) 200 时 body 被反序列化成 Map
 ///   4) 401/403 时抛 HttpRequestException，statusCode 透传
 Response _utf8Resp(String body, int code) => Response.bytes(
@@ -41,12 +41,15 @@ void main() {
   });
 
   group('LLM diagnose / repair 鉴权布线', () {
-    test('/api/diagnose2 携带 Token 头并解析出特征诊断结果', () async {
+    test('/api/diagnose2 携带 Bearer Token 并解析出特征诊断结果', () async {
       when(client.post(
         Uri.parse('${HttpConstants.backendBaseUrl}/api/diagnose2'),
         body: jsonEncode({'conversation': 'PAR: 我...我叫小明'}),
         headers: argThat(
-          containsPair('Token', _fakeToken),
+          allOf(
+            containsPair('Authorization', 'Bearer $_fakeToken'),
+            isNot(contains('Token')),
+          ),
           named: 'headers',
         ),
       )).thenAnswer((_) async => _utf8Resp(
@@ -69,12 +72,15 @@ void main() {
       expect(data['evidence'], ['短而简化', '找词困难']);
     });
 
-    test('/api/repair 携带 Token 头并解析出 repairedConversation', () async {
+    test('/api/repair 携带 Bearer Token 并解析出 repairedConversation', () async {
       when(client.post(
         Uri.parse('${HttpConstants.backendBaseUrl}/api/repair'),
         body: jsonEncode({'conversation': '原始对话'}),
         headers: argThat(
-          containsPair('Token', _fakeToken),
+          allOf(
+            containsPair('Authorization', 'Bearer $_fakeToken'),
+            isNot(contains('Token')),
+          ),
           named: 'headers',
         ),
       )).thenAnswer((_) async => _utf8Resp(
@@ -113,8 +119,7 @@ void main() {
       );
     });
 
-    test('/api/repair 后端 403 → HttpRequestException(statusCode=403)',
-        () async {
+    test('/api/repair 后端 403 → HttpRequestException(statusCode=403)', () async {
       when(client.post(
         Uri.parse('${HttpConstants.backendBaseUrl}/api/repair'),
         body: anyNamed('body'),
